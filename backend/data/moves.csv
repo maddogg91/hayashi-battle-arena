@@ -1,0 +1,125 @@
+character,key,label,cd,target,actions,description
+Arisa Huang,pounce,Summon Pounce,2,enemy,"[{""kind"":""damage"",""base"":10,""ignore"":0.4}]","High damage; partial DEF ignore."
+Arisa Huang,pack,Call the Pack,3,aoe_enemy,"[{""kind"":""damage"",""base"":8}]","Summoned beasts strike all foes."
+Arisa Huang,bind,Spirit Bind,3,enemy,"[{""kind"":""effect"",""type"":""bind"",""turns"":2}]", "Bind enemy (2)."
+Arisa Huang,boon,Wild Boon,3,ally,"[{""kind"":""mod"",""stat"":""atk"",""amount"":2,""turns"":2},{""kind"":""effect"",""type"":""shield"",""turns"":1}]", "+2 ATK (2) & Shield (1)."
+
+Jett Kimura,pierce,Piercing Round,2,enemy,"[{""kind"":""damage"",""base"":12,""ignore"":0.6}]", "Ignores most DEF."
+Jett Kimura,suppress,Suppressive Fire,3,aoe_enemy,"[{""kind"":""damage"",""base"":9},{""kind"":""mod"",""stat"":""atk"",""amount"":-1,""turns"":2}]", "AOE + ATK -1 (2)."
+Jett Kimura,snap,Quickdraw,2,enemy,"[{""kind"":""mod"",""stat"":""spd"",""amount"":5,""turns"":1},{""kind"":""damage"",""base"":10}]", "+5 SPD (1) then hit."
+Jett Kimura,focus,Scope Focus,3,self,"[{""kind"":""mod"",""stat"":""atk"",""amount"":3,""turns"":2}]", "+3 ATK (2)."
+
+Shou,slash,Demon Slash,2,enemy,"[{""kind"":""damage"",""base"":14,""ignore"":0.25}]", "Heavy strike; partial pierce."
+Shou,rend,Abyssal Rend,3,enemy,"[{""kind"":""damage"",""base"":12},{""kind"":""mod"",""stat"":""def"",""amount"":-2,""turns"":2}]", "Hit + DEF -2 (2)."
+Shou,howl,Dread Howl,3,aoe_enemy,"[{""kind"":""effect"",""type"":""stun"",""turns"":1}]", "Stun all foes (1)."
+Shou,frenzy,Demon Frenzy,4,self,"[{""kind"":""mod"",""stat"":""atk"",""amount"":4,""turns"":2},{""kind"":""mod"",""stat"":""spd"",""amount"":4,""turns"":2}]", "+4 ATK/+4 SPD (2)."
+
+Maako Karsean,ignite,Ignite Form,3,enemy,"[{""kind"":""effect"",""type"":""burn"",""turns"":3},{""kind"":""damage"",""base"":10}]", "Burn (3) + hit."
+Maako Karsean,embers,Ember Rain,3,aoe_enemy,"[{""kind"":""effect"",""type"":""burn"",""turns"":1},{""kind"":""damage"",""base"":7}]", "AOE small hit + Burn (1)."
+Maako Karsean,phase,Flame Phase,3,self,"[{""kind"":""effect"",""type"":""shield"",""turns"":1},{""kind"":""mod"",""stat"":""spd"",""amount"":3,""turns"":2}]", "Shield (1) + +3 SPD (2)."
+Maako Karsean,flare,Flare Boost,3,self,"[{""kind"":""mod"",""stat"":""atk"",""amount"":3,""turns"":2}]", "+3 ATK (2)."
+
+Erika Sharp,smite,Angelic Smite,2,enemy,"[{""kind"":""damage"",""base"":10}]", "Reliable holy damage."
+Erika Sharp,bind,Angelic Bind,3,enemy,"[{""kind"":""damage"",""base"":8},{""kind"":""effect"",""type"":""bind"",""turns"":1},{""kind"":""heal"",""amount"":6,""target"":""self""}]", "Bind 1 + self heal 6."
+Erika Sharp,bless,Blessing,3,ally,"[{""kind"":""mod"",""stat"":""def"",""amount"":3,""turns"":2},{""kind"":""effect"",""type"":""shield"",""turns"":1}]", "+3 DEF (2) & Shield (1)."
+Erika Sharp,radiance,Radiance,3,aoe_team,"[{""kind"":""heal"",""amount"":8,""target"":""aoe_team""}]", "Heal all allies 8."
+
+Star Trethowan,charm,Beguile,2,enemy,"[{""kind"":""effect"",""type"":""stun"",""turns"":1}]", "Stun (1)."
+Star Trethowan,fan,Fan Blades,2,enemy,"[{""kind"":""damage"",""base"":12}]", "Cutting strike."
+Star Trethowan,lure,Alluring Step,3,self,"[{""kind"":""mod"",""stat"":""spd"",""amount"":6,""turns"":2}]", "+6 SPD (2)."
+Star Trethowan,dazzle,Dazzle,3,aoe_enemy,"[{""kind"":""mod"",""stat"":""atk"",""amount"":-2,""turns"":2}]", "Enemies ATK -2 (2)."
+
+Kairu Yusoko,radiant,Radiant Strike,2,enemy,"[{""kind"":""damage"",""base"":12,""ignore"":0.3},{""kind"":""heal"",""amount"":4,""target"":""self""}]", "Pierce + self heal 4."
+Kairu Yusoko,flare,Sun Flare,3,aoe_enemy,"[{""kind"":""damage"",""base"":9}]", "AOE light damage."
+Kairu Yusoko,bolster,Light Boon,3,ally,"[{""kind"":""mod"",""stat"":""atk"",""amount"":2,""turns"":2},{""kind"":""mod"",""stat"":""spd"",""amount"":2,""turns"":2}]", "+2 ATK/+2 SPD (2)."
+Kairu Yusoko,aegis,Light Aegis,3,self,"[{""kind"":""effect"",""type"":""shield"",""turns"":2}]", "Shield (2)."
+
+Sai Ryuzaki,bind,Chain Bind,2,enemy,"[{""kind"":""effect"",""type"":""bind"",""turns"":2}]", "Bind (2)."
+Sai Ryuzaki,lacerate,Lacerate,2,enemy,"[{""kind"":""damage"",""base"":13}]", "Lethal chain slash."
+Sai Ryuzaki,snare,Snare Field,3,aoe_enemy,"[{""kind"":""effect"",""type"":""bind"",""turns"":1}]", "AOE Bind (1)."
+Sai Ryuzaki,harden,Harden Chains,3,self,"[{""kind"":""mod"",""stat"":""def"",""amount"":3,""turns"":2}]", "+3 DEF (2)."
+
+Kenshin Natasukiama,arc,Elemental Arc,2,enemy,"[{""kind"":""damage"",""base"":13,""ignore"":0.2}]", "Piercing elemental cut."
+Kenshin Natasukiama,shock,Tempest Shock,3,aoe_enemy,"[{""kind"":""damage"",""base"":8},{""kind"":""effect"",""type"":""stun"",""turns"":1}]", "AOE + stun (1)."
+Kenshin Natasukiama,imbue,Elemental Imbue,3,self,"[{""kind"":""mod"",""stat"":""atk"",""amount"":3,""turns"":2}]", "+3 ATK (2)."
+Kenshin Natasukiama,ward,Elemental Ward,3,ally,"[{""kind"":""effect"",""type"":""shield"",""turns"":1}]", "Shield (1)."
+
+Sendara Al Vere,lunge,Piercing Lunge,2,enemy,"[{""kind"":""damage"",""base"":15}]", "Heavy thrust."
+Sendara Al Vere,shatter,Guard Shatter,3,enemy,"[{""kind"":""mod"",""stat"":""def"",""amount"":-2,""turns"":2},{""kind"":""damage"",""base"":10}]", "DEF -2 (2) + hit."
+Sendara Al Vere,bulwark,Bulwark,3,self,"[{""kind"":""mod"",""stat"":""def"",""amount"":4,""turns"":2},{""kind"":""effect"",""type"":""shield"",""turns"":1}]", "+4 DEF (2) + Shield (1)."
+Sendara Al Vere,warcry,War Cry,3,aoe_team,"[{""kind"":""mod"",""stat"":""atk"",""amount"":2,""turns"":2}]", "Team +2 ATK (2)."
+
+Liara Mitsuke,double,Double Cut,2,enemy,"[{""kind"":""damage"",""base"":8,""ignore"":0.25},{""kind"":""damage"",""base"":8,""ignore"":0.25}]", "Two fast strikes."
+Liara Mitsuke,dash,Shadow Dash,2,self,"[{""kind"":""mod"",""stat"":""spd"",""amount"":8,""turns"":1}]", "+8 SPD (1)."
+Liara Mitsuke,rend,Armor Rend,3,enemy,"[{""kind"":""mod"",""stat"":""def"",""amount"":-3,""turns"":2},{""kind"":""damage"",""base"":9}]", "DEF -3 (2) + hit."
+Liara Mitsuke,cyclone,Cyclone,3,aoe_enemy,"[{""kind"":""damage"",""base"":7}]", "Whirling AOE."
+
+Tana Phoenix,burst,Flame Burst,2,enemy,"[{""kind"":""effect"",""type"":""burn"",""turns"":2},{""kind"":""damage"",""base"":12}]", "Hit + Burn (2)."
+Tana Phoenix,fan,Fan of Flame,3,aoe_enemy,"[{""kind"":""damage"",""base"":9}]", "AOE flame."
+Tana Phoenix,sear,Searing Focus,3,self,"[{""kind"":""mod"",""stat"":""atk"",""amount"":3,""turns"":2}]", "+3 ATK (2)."
+Tana Phoenix,warmth,Inner Warmth,2,ally,"[{""kind"":""heal"",""amount"":8}]", "Heal 8."
+
+Ben Sherman,strike,Ki Strike,2,enemy,"[{""kind"":""damage"",""base"":14}]", "Powerful blow."
+Ben Sherman,surge,Ki Surge,3,self,"[{""kind"":""mod"",""stat"":""atk"",""amount"":3,""turns"":2},{""kind"":""recoil"",""amount"":3}]", "+3 ATK (2); 3 recoil."
+Ben Sherman,wave,Ki Wave,3,aoe_enemy,"[{""kind"":""damage"",""base"":9}]", "AOE ki blast."
+Ben Sherman,guard,Iron Guard,3,self,"[{""kind"":""mod"",""stat"":""def"",""amount"":3,""turns"":2},{""kind"":""effect"",""type"":""shield"",""turns"":1}]", "+3 DEF (2) + Shield (1)."
+
+Paul Watoski,drone,Drone Strike,2,enemy,"[{""kind"":""damage"",""base"":13}]", "Reliable drone damage."
+Paul Watoski,shield,Drone Shield,2,ally,"[{""kind"":""effect"",""type"":""shield"",""turns"":1}]", "Shield (1)."
+Paul Watoski,overclk,Overclock,3,ally,"[{""kind"":""mod"",""stat"":""spd"",""amount"":5,""turns"":2}]", "+5 SPD (2)."
+Paul Watoski,swarm,Swarm,3,aoe_enemy,"[{""kind"":""damage"",""base"":8}]", "AOE drones."
+
+Kaitsu Hoshigaki,rain,Arrow Rain,2,aoe_enemy,"[{""kind"":""damage"",""base"":9}]", "AOE arrows."
+Kaitsu Hoshigaki,pierce,Pierce Shot,2,enemy,"[{""kind"":""damage"",""base"":12,""ignore"":0.5}]", "Piercing shot."
+Kaitsu Hoshigaki,haste,Haste,3,self,"[{""kind"":""mod"",""stat"":""spd"",""amount"":6,""turns"":2}]", "+6 SPD (2)."
+Kaitsu Hoshigaki,cripple,Crippling Shot,3,enemy,"[{""kind"":""mod"",""stat"":""atk"",""amount"":-2,""turns"":2},{""kind"":""damage"",""base"":8}]", "ATK -2 (2) + hit."
+
+Alasia Maltese,charge,Explosive Charge,2,enemy,"[{""kind"":""damage"",""base"":17}]", "High single-target damage."
+Alasia Maltese,blast,Shock Blast,3,aoe_enemy,"[{""kind"":""damage"",""base"":10}]", "AOE concussion."
+Alasia Maltese,fuse,Long Fuse,2,self,"[{""kind"":""mod"",""stat"":""atk"",""amount"":2,""turns"":2}]", "+2 ATK (2)."
+Alasia Maltese,smoke,Smoke Screen,3,aoe_team,"[{""kind"":""mod"",""stat"":""def"",""amount"":2,""turns"":2}]", "Team +2 DEF (2)."
+
+Lyra,mend,Arcane Mend,2,self,"[{""kind"":""heal"",""amount"":12}]", "Heal 12."
+Lyra,smite,Arcane Smite,2,enemy,"[{""kind"":""damage"",""base"":11}]", "Arcane strike."
+Lyra,aura,Rejuvenating Aura,3,aoe_team,"[{""kind"":""heal"",""amount"":6,""target"":""aoe_team""}]", "Heal team 6."
+Lyra,seal,Magic Seal,3,enemy,"[{""kind"":""mod"",""stat"":""atk"",""amount"":-2,""turns"":2},{""kind"":""mod"",""stat"":""def"",""amount"":-1,""turns"":2}]", "ATK -2 & DEF -1 (2)."
+
+Robert Asuko,jab,Rapid Jabs,2,enemy,"[{""kind"":""damage"",""base"":11},{""kind"":""damage"",""base"":11}]", "Two quick hits."
+Robert Asuko,haymaker,Haymaker,3,enemy,"[{""kind"":""damage"",""base"":18},{""kind"":""recoil"",""amount"":4}]", "Huge hit; 4 recoil."
+Robert Asuko,weave,Slip & Weave,2,self,"[{""kind"":""mod"",""stat"":""spd"",""amount"":6,""turns"":1}]", "+6 SPD (1)."
+Robert Asuko,roar,Fighter's Roar,3,aoe_team,"[{""kind"":""mod"",""stat"":""atk"",""amount"":2,""turns"":2}]", "Team +2 ATK (2)."
+
+Soren Harutaki,aegis,Aegis,2,ally,"[{""kind"":""effect"",""type"":""shield"",""turns"":1}]", "Shield (1)."
+Soren Harutaki,reflect,Reflect,3,self,"[{""kind"":""effect"",""type"":""reflect"",""turns"":1}]", "Reflect (1)."
+Soren Harutaki,bulwark,Bulwark,3,aoe_team,"[{""kind"":""mod"",""stat"":""def"",""amount"":2,""turns"":2}]", "Team +2 DEF (2)."
+Soren Harutaki,repel,Repel Field,3,aoe_enemy,"[{""kind"":""mod"",""stat"":""atk"",""amount"":-1,""turns"":2}]", "Enemies ATK -1 (2)."
+
+Arthur Kinglion,snipe,Snipe,2,enemy,"[{""kind"":""damage"",""base"":16,""ignore"":0.7}]", "Very high pierce."
+Arthur Kinglion,mark,Mark Target,3,enemy,"[{""kind"":""mod"",""stat"":""def"",""amount"":-3,""turns"":2}]", "DEF -3 (2)."
+Arthur Kinglion,volley,Volley,3,aoe_enemy,"[{""kind"":""damage"",""base"":8}]", "AOE barrage."
+Arthur Kinglion,steady,Steady Aim,2,self,"[{""kind"":""mod"",""stat"":""atk"",""amount"":3,""turns"":2}]", "+3 ATK (2)."
+
+Kobayashi,palm,Chi Palm,2,enemy,"[{""kind"":""damage"",""base"":12}]", "Solid strike."
+Kobayashi,meditate,Meditate,2,self,"[{""kind"":""heal"",""amount"":8}]", "Heal 8."
+Kobayashi,shock,Chi Shockwave,3,aoe_enemy,"[{""kind"":""damage"",""base"":8}]", "AOE chi pulse."
+Kobayashi,ward,Chi Ward,3,ally,"[{""kind"":""effect"",""type"":""shield"",""turns"":1}]", "Shield (1)."
+
+Hakudoshi Inoue,slam,Body Slam,2,enemy,"[{""kind"":""damage"",""base"":12},{""kind"":""effect"",""type"":""stun"",""turns"":1}]", "Hit + Stun (1)."
+Hakudoshi Inoue,provoke,Provoke,3,aoe_enemy,"[{""kind"":""mod"",""stat"":""atk"",""amount"":-1,""turns"":2},{""kind"":""effect"",""type"":""shield"",""turns"":1,""target"":""self""}]", "Enemy ATK -1; self Shield."
+Hakudoshi Inoue,fortify,Fortify,3,self,"[{""kind"":""mod"",""stat"":""def"",""amount"":4,""turns"":2}]", "+4 DEF (2)."
+Hakudoshi Inoue,guardall,Cover,3,aoe_team,"[{""kind"":""effect"",""type"":""shield"",""turns"":1}]", "Shield all allies (1)."
+
+Sora Lorashu,flurry,Elemental Flurry,2,enemy,"[{""kind"":""damage"",""base"":14}]", "Empowered strike."
+Sora Lorashu,eruption,Eruption,3,aoe_enemy,"[{""kind"":""damage"",""base"":10}]", "AOE elemental hit."
+Sora Lorashu,temper,Temper Blade,3,self,"[{""kind"":""mod"",""stat"":""atk"",""amount"":3,""turns"":2}]", "+3 ATK (2)."
+Sora Lorashu,veil,Veil,3,ally,"[{""kind"":""effect"",""type"":""shield"",""turns"":1}]", "Shield (1)."
+
+Allie Mustang,hex,Hex,2,enemy,"[{""kind"":""mod"",""stat"":""atk"",""amount"":-2,""turns"":2},{""kind"":""damage"",""base"":9}]", "ATK -2 (2) + hit."
+Allie Mustang,blight,Blight,3,aoe_enemy,"[{""kind"":""effect"",""type"":""burn"",""turns"":1},{""kind"":""damage"",""base"":7}]", "AOE + Burn (1)."
+Allie Mustang,drain,Life Drain,3,enemy,"[{""kind"":""damage"",""base"":12},{""kind"":""heal"",""amount"":6,""target"":""self""}]", "Hit; heal half (6)."
+Allie Mustang,shadow,Shadow Veil,3,self,"[{""kind"":""mod"",""stat"":""spd"",""amount"":3,""turns"":2},{""kind"":""effect"",""type"":""shield"",""turns"":1}]", "+3 SPD (2) + Shield."
+
+Kara Higgins,anthem,Muse's Anthem,3,aoe_team,"[{""kind"":""mod"",""stat"":""atk"",""amount"":3,""turns"":2},{""kind"":""effect"",""type"":""shield"",""turns"":1,""target"":""self""}]", "Team +3 ATK (2); self Shield."
+Kara Higgins,dirge,Dirge,3,aoe_enemy,"[{""kind"":""mod"",""stat"":""atk"",""amount"":-2,""turns"":2}]", "Enemies ATK -2 (2)."
+Kara Higgins,solo,Inspiring Solo,2,ally,"[{""kind"":""mod"",""stat"":""spd"",""amount"":4,""turns"":2}]", "+4 SPD (2)."
+Kara Higgins,cadenza,Cadenza,3,self,"[{""kind"":""mod"",""stat"":""def"",""amount"":3,""turns"":2}]", "+3 DEF (2)."
