@@ -19,6 +19,13 @@ app.use("/health", healthRouter);
 app.use("/replay", replayRouter);
 app.use("/admin", adminRouter);
 
+app.use(express.static(path.join(__dirname, "..", "public")));
+
+// Fallback to index.html for SPA routes
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(__dirname, "..", "public", "index.html"));
+});
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*" },
@@ -26,6 +33,6 @@ const io = new Server(server, {
 
 initSocket(io);
 
-const PORT = process.env.PORT || 4000;
-server.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, ("0.0.0.0") => console.log(`✅ Server running on port ${PORT}`));
 

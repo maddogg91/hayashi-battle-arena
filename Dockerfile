@@ -1,25 +1,59 @@
-# Use a multi-stage build to first build the frontend
-FROM node:18-alpine as frontend-builder
-WORKDIR /app/frontend
-COPY frontend/package*.json ./
-RUN npm install
-COPY frontend/ ./
-RUN npm run build
-
-# Build the backend
-FROM node:18-alpine as backend-builder
-WORKDIR /app/backend
-COPY backend/package*.json ./
-RUN npm install
-COPY backend/ ./
-
-# Final stage to combine the built assets
-FROM node:18-alpine
+# ---------------------------------------
+# Stage 1: Build the frontend with Vite
+# ---------------------------------------
+FROM node:20-alpine AS frontend-builder
 WORKDIR /app
-COPY --from=backend-builder /app/backend ./backend
-COPY --from=frontend-builder /app/frontend/build ./backend/build
 
-# Use the backend directory as the working directory
-WORKDIR /app/backend
-# Set the command to run the backend server
-CMD ["node", "src/index.js"]
+# Install deps only for frontend
+COPY frontend/package*.json ./frontend/
+RUN cd frontend && npm ci
+
+# Build-time optional override for the frontend to know the backend URL.
+# If you keep your client code using same-origin websockets, you can omit this.
+# Example: --build-arg VITE_BACKEND_URL=""
+ARG VITE_BACKEND_URL=""
+ENV VITE_BACKEND_URL=${VITE_BACKEND_URL}
+
+# Copy frontend source and build
+COPY frontend ./frontend
+RUN cd frontend && npm run build
+
+# ---------------------------------------
+# Stage 2: Install backend deps (prod)
+# ---------------------------------------
+FROM node:20-alpine AS backend-deps
+WORKDIR /app
+
+# Install only production deps for backend
+COPY backend/package*.json ./backend/
+RUN cd backend && npm ci --omit=dev
+
+# ---------------------------------------
+# Stage 3: Runtime image
+# ---------------------------------------
+FROM node:20-alpine AS runtime
+WORKDIR /app
+
+# Set NODE_ENV for performance
+ENV NODE_ENV=production
+
+# Cloud Run will inject $PORT; default to 8080 locally
+ENV PORT=8080
+
+# Copy backend runtime deps and source
+COPY --from=backend-deps /app/backend/node_modules ./backend/node_modules
+COPY backend ./backend
+
+# Put compiled frontend into backend/public so Express can serve it
+RUN mkdir -p backend/public
+COPY --from=frontend-builder /app/frontend/dist ./backend/public
+
+# (Optional but recommended) Use a non-root user for security
+# node user exists in the official image
+USER node
+
+# Cloud Run expects the server to bind 0.0.0.0:$PORT
+EXPOSE 8080
+
+# Start the backend (ensure your package.json has "start": "node src/index.js")
+CMD ["node", "backend/src/index.js"]
