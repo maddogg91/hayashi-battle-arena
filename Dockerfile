@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Install deps only for frontend
 COPY frontend/package*.json ./frontend/
-RUN cd frontend && npm ci
+RUN cd frontend && npm i
 
 # Build-time optional override for the frontend to know the backend URL.
 # If you keep your client code using same-origin websockets, you can omit this.
@@ -26,7 +26,7 @@ WORKDIR /app
 
 # Install only production deps for backend
 COPY backend/package*.json ./backend/
-RUN cd backend && npm ci --omit=dev
+RUN cd backend && npm i --omit=dev
 
 # ---------------------------------------
 # Stage 3: Runtime image
