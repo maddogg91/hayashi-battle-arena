@@ -163,34 +163,30 @@ export default function Game() {
     setPendingMove(null);
   }, [game?.actor?.role, game?.actor?.i]);
 
-  const executeMove = (moveKey, forcedTarget) => {
-    if (!iAmActing || game?.over) return;
-    const myUnit = currentActor;
-    if (!myUnit) return;
-
-    const m = (myUnit.skills || []).find((s) => s.key === moveKey);
-    if (!m || (myUnit.sp ?? 0) < (m.cost || 0)) return;
-    const needs = m?.target || "none";
+  // Submits whatever move is currently armed. This is the ONLY path that
+  // emits to the server — selecting a move or a target never fires on its
+  // own, so there's no ambiguous "did that click apply?" state: nothing
+  // happens until this explicit confirm, and this always has everything
+  // it needs to build a valid payload (canConfirm gates when it's callable).
+  const confirmAction = () => {
+    if (!canConfirm) return;
+    const { key: moveKey, needs } = pendingMove;
 
     const payload = { move: moveKey };
     if (needs === "self") {
       payload.target = { role, index: game.actor.i };
     } else if (needs === "enemy" || needs === "ally") {
-      const t = forcedTarget || target;
-      if (!t) return;
-      const desiredRole = needs === "ally" ? role : role === "A" ? "B" : "A";
-      if (t.role !== desiredRole) return;
-      payload.target = t;
+      payload.target = target;
     }
     socket.emit("playerMove", { roomId, move: payload, role });
     setTarget(null);
     setPendingMove(null);
   };
 
-  // Clicking a move either fires immediately (self/AOE, or a target was
-  // already picked on the grid) or — for enemy/ally moves with no target
-  // yet — arms "pending" mode so the next grid tap fires it, in whichever
-  // order the player prefers.
+  // Clicking a move only arms it — nothing executes until confirmAction()
+  // runs. If the move needs a target the player already had selected for a
+  // *different* side (e.g. they had an ally targeted, then picked an enemy
+  // move), drop it rather than leaving a stale, invalid target in place.
   const chooseMove = (moveKey) => {
     if (!iAmActing || game?.over) return;
     const myUnit = currentActor;
@@ -199,29 +195,29 @@ export default function Game() {
     const m = (myUnit.skills || []).find((s) => s.key === moveKey);
     if (!m || (myUnit.sp ?? 0) < (m.cost || 0)) return;
     const needs = m?.target || "none";
+    const desiredRole =
+      needs === "ally" ? role : needs === "enemy" ? (role === "A" ? "B" : "A") : null;
 
-    if (needs === "enemy" || needs === "ally") {
-      const desiredRole = needs === "ally" ? role : role === "A" ? "B" : "A";
-      if (target && target.role === desiredRole) {
-        executeMove(moveKey, target);
-      } else {
-        setPendingMove({ key: moveKey, label: m.label, needs, desiredRole });
-      }
-    } else {
-      executeMove(moveKey);
-    }
+    setPendingMove({ key: moveKey, label: m.label, needs, desiredRole });
+    if (desiredRole && target?.role !== desiredRole) setTarget(null);
   };
 
+  // Tapping a grid portrait only arms a target — same deal, confirmAction()
+  // is what actually submits.
   const selectMyTarget = (whoRole, idx) => {
     if (!iAmActing) return;
     const unit = game?.teams?.[whoRole]?.[idx];
     if (!unit || unit.hp <= 0) return;
-    if (pendingMove && pendingMove.desiredRole === whoRole) {
-      executeMove(pendingMove.key, { role: whoRole, index: idx });
-      return;
-    }
     setTarget({ role: whoRole, index: idx });
   };
+
+  const pendingNeedsTarget = pendingMove?.needs === "enemy" || pendingMove?.needs === "ally";
+  const canConfirm = !!(
+    iAmActing &&
+    !game?.over &&
+    pendingMove &&
+    (!pendingNeedsTarget || (target && target.role === pendingMove.desiredRole))
+  );
 
   // Voluntary exit before a match has finished — character select, the
   // waiting-for-opponent screen, or the cutscene. Tells the server we're
@@ -403,7 +399,9 @@ export default function Game() {
 
           <div className="mt-2 text-xs text-gray-300">
             {pendingMove
-              ? `${pendingMove.label}: tap a highlighted target to use it.`
+              ? canConfirm
+                ? `${pendingMove.label} ready — press Confirm to use it.`
+                : `${pendingMove.label}: tap a highlighted target, then press Confirm.`
               : target
               ? `Target: ${target.role} #${target.index + 1} — ${
                   game.teams[target.role][target.index].name
@@ -416,7 +414,9 @@ export default function Game() {
             canAct={iAmActing && !game.over}
             onUse={chooseMove}
             pendingMove={iAmActing ? pendingMove : null}
-            onCancelPending={() => setPendingMove(null)}
+            onCancelPending={() => { setPendingMove(null); setTarget(null); }}
+            canConfirm={iAmActing ? canConfirm : false}
+            onConfirm={confirmAction}
           />
 
           <div className="mt-6 bg-gray-800 p-4 rounded-lg max-w-3xl text-left">

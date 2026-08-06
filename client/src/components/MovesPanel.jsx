@@ -6,6 +6,8 @@ export default function MovesPanel({
   onUse,
   pendingMove = null,
   onCancelPending,
+  canConfirm = false,
+  onConfirm,
 }) {
   const [hoverKey, setHoverKey] = useState(null);
   const sp = myUnit.sp ?? 0;
@@ -81,16 +83,33 @@ export default function MovesPanel({
           <div className="flex items-center justify-between gap-3">
             <span>
               <span className="font-semibold text-yellow-400">{pendingMove.label}:</span>{" "}
-              Choose {pendingMove.needs === "enemy" ? "an" : "a"} {needsTargetWord(pendingMove.needs).toLowerCase()} target to use it.
+              {canConfirm
+                ? "Ready to use — press Confirm."
+                : `Choose ${pendingMove.needs === "enemy" ? "an" : "a"} ${needsTargetWord(pendingMove.needs).toLowerCase()} target, then press Confirm.`}
             </span>
-            {onCancelPending && (
-              <button
-                onClick={onCancelPending}
-                className="shrink-0 text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600"
-              >
-                Cancel
-              </button>
-            )}
+            <div className="flex shrink-0 gap-2">
+              {onCancelPending && (
+                <button
+                  onClick={onCancelPending}
+                  className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+              )}
+              {onConfirm && (
+                <button
+                  onClick={onConfirm}
+                  disabled={!canConfirm}
+                  className={`text-xs px-3 py-1 rounded font-semibold
+                    ${canConfirm
+                      ? "bg-green-600 hover:bg-green-700"
+                      : "bg-gray-600 cursor-not-allowed opacity-60"}
+                  `}
+                >
+                  Confirm
+                </button>
+              )}
+            </div>
           </div>
         ) : activeSkill ? (
           <>
