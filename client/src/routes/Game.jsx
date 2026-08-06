@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { socket } from "../api/socket";
 import Lobby from "./Lobby";
 import CharacterSelect from "./CharacterSelect";
@@ -20,6 +20,13 @@ export default function Game() {
   const [game, setGame] = useState(null);
   const [log, setLog] = useState([]);
   const [replayId, setReplayId] = useState(null);
+  const logRef = useRef(null);
+
+  // autoscroll the battle log to the latest entry
+  useEffect(() => {
+    const el = logRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [log]);
 
   // Names
   const [names, setNames] = useState({ A: "Player A", B: "Player B" });
@@ -344,7 +351,7 @@ export default function Game() {
 
           <div className="mt-6 bg-gray-800 p-4 rounded-lg max-w-3xl text-left">
             <h2 className="text-xl mb-2">Battle Log</h2>
-            <div className="h-48 overflow-y-auto space-y-1">
+            <div ref={logRef} className="h-48 overflow-y-auto space-y-1">
               {log.map((entry, i) => (
                 <p key={i} className="text-sm">{entry}</p>
               ))}
