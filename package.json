@@ -10,7 +10,7 @@
     "start": "node backend/index.js"
   },
   "engines": {
-    "node": "21"
+    "node": "22"
   },
   "main": "index.js"
 }
