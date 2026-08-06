@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function PreBattleCutscene({ cutscene = [], onDone }) {
+export default function PreBattleCutscene({ cutscene = [], onDone, onLeave }) {
   const [i, setI] = useState(0);
   const line = cutscene[i];
 
@@ -9,7 +9,14 @@ export default function PreBattleCutscene({ cutscene = [], onDone }) {
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
       <div className="bg-gray-900 text-white rounded-xl p-6 w-full max-w-2xl shadow-xl">
-        <h3 className="text-lg font-bold text-yellow-400 mb-3">Before the Battle…</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-bold text-yellow-400">Before the Battle…</h3>
+          {onLeave && (
+            <button onClick={onLeave} className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300">
+              Return to Lobby
+            </button>
+          )}
+        </div>
         <div className="min-h-24">
           <p className="text-sm text-gray-300">
             <span className={line?.side === "A" ? "text-green-400" : line?.side === "B" ? "text-blue-400" : "text-gray-200"}>

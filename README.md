@@ -15,6 +15,30 @@ npm start        # serves the app + Socket.IO on $PORT (default 8080)
 
 ## Changelog
 
+### 2026-08-06 — Reconnect fix, room controls, character guide
+
+- **Fixed attacks/actions appearing "stuck" over a real deployment** —
+  Socket.IO does not automatically restore room membership or per-socket
+  session data across a reconnect. A brief network drop mid-match (far
+  more likely on a real deployment than in same-machine local testing)
+  let the server keep processing that player's moves, but had no route
+  left to broadcast the results back to them or their opponent, since
+  their new connection was never re-joined to the match's room. Enabled
+  Socket.IO's connectionStateRecovery for short gaps, and added a client
+  fallback that re-binds to the room on any reconnect outside that
+  window. Verified at the protocol level with a forced hard-disconnect
+  and reconnect mid-battle.
+- **Cancel button for a pending private match** — you can now back out of
+  "Waiting for an opponent to join with passcode..." instead of being
+  stuck there.
+- **Return to Lobby button** added to character select, the
+  waiting-for-opponent screen, and the pre-battle cutscene, so you're
+  never stuck without a way back except refreshing.
+- **Character guide** — a new browsable roster page (via the lobby's
+  "📖 Character Guide" button) showing every fighter's profile blurb and
+  full skill list with SP costs and descriptions, covering damage, buff,
+  and other effect types alike.
+
 ### 2026-08-06 — Lobby privacy, chat names, and global chat
 
 - **Private match codes no longer leak** — the passcode for a private

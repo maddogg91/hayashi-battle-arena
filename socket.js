@@ -85,6 +85,13 @@ function ensureRoom(roomId) {
 }
 function opponentRole(role) { return role === "A" ? "B" : "A"; }
 function safeEmit(io, roomId, event, payload) { try { io.to(roomId).emit(event, payload); } catch {} }
+function dropFromRoom(io, roomId, role) {
+  const room = rooms[roomId];
+  if (!room) return;
+  room.players[role] = "__LEFT__";
+  safeEmit(io, roomId, "opponentLeft", { role });
+  maybeCleanupRoom(roomId);
+}
 function safeLeaveQueue(socket) {
   if (inQueue.has(socket.id)) {
     inQueue.delete(socket.id);
@@ -251,10 +258,40 @@ function privateMatch(io, socket, passcode, name) {
   socket.emit("privateWaiting", { roomId, passcode: code });
 }
 
+function cancelPrivateMatch(io, socket) {
+  const roomId = socket.data?.roomId;
+  if (!roomId) return;
+  const room = rooms[roomId];
+  if (!room || !room.isPrivate) return;
+  // If the opponent already joined, the match has started — let it proceed
+  // instead of tearing it down out from under them.
+  if (room.players.A && room.players.B) return;
+
+  if (room.passcode) delete passcodeRooms[room.passcode];
+  delete rooms[roomId];
+  socket.leave(roomId);
+  socket.data.roomId = null;
+  socket.data.role = null;
+  setPresence(io, socket, { status: "idle", passcode: null });
+}
+
 /* -------------------- Public API: init Socket.IO -------------------- */
 export function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: { origin: "*", methods: ["GET", "POST"] },
+    // Socket.IO does not restore room membership or socket.data across a
+    // reconnect by default — a brief network drop mid-match (much more
+    // common on a real deployment than same-machine local testing) silently
+    // un-joins the player from their room. The server can still process
+    // their next move, but io.to(roomId).emit(...) never reaches them again
+    // since their new socket was never re-joined, so battle updates just
+    // stop arriving. This restores rooms/data automatically for reconnects
+    // within the window; see also the client's "joinRoom" re-emit on
+    // connect for reconnects that land outside it.
+    connectionStateRecovery: {
+      maxDisconnectionDuration: 2 * 60 * 1000,
+      skipMiddlewares: true,
+    },
   });
 
   io.on("connection", (socket) => {
@@ -281,19 +318,40 @@ export function initSocket(httpServer) {
     socket.on("privateMatch", ({ passcode, name } = {}) =>
       privateMatch(io, socket, passcode, name)
     );
+    socket.on("cancelPrivateMatch", () => cancelPrivateMatch(io, socket));
 
-    /* -------- Manual room join (legacy/manual flow) -------- */
+    /* -------- Manual room join (legacy/manual flow, also used to rebind a
+       reconnected socket back to its room mid-match — see the client's
+       "joinRoom" re-emit on connect) -------- */
     socket.on("joinRoom", ({ roomId, role, name } = {}) => {
       if (!roomId || !role || !["A","B"].includes(role)) return;
       const room = ensureRoom(roomId);
       safeLeaveQueue(socket);
 
+      const alreadyUnderway = room.status !== "lobby";
+
       room.players[role] = socket.id;
-      room.names[role] = (name || `Player ${role}`).slice(0, 40);
+      room.names[role] = (name || room.names[role] || `Player ${role}`).slice(0, 40);
       socket.data.roomId = roomId;
       socket.data.role = role;
       socket.data.name = room.names[role];
       socket.join(roomId);
+
+      if (alreadyUnderway) {
+        // Rebind only: the match already progressed past this player's
+        // original join, so just resync their client to current state
+        // instead of replaying the "match found" flow / room.status.
+        emitMatched(io, socket, roomId, role);
+        socket.emit("playerNames", room.names);
+        socket.emit("chatHistory", room.chat || []);
+        const game = getGame(roomId);
+        if (game) {
+          if (room.status === "cutscene") socket.emit("preBattleDialogue", { cutscene: game.cutscene });
+          else socket.emit("startGame", game);
+        }
+        markPlaying(io, socket);
+        return;
+      }
 
       emitMatched(io, socket, roomId, role);
       io.to(roomId).emit("playerNames", room.names);
@@ -410,6 +468,21 @@ export function initSocket(httpServer) {
       io.emit("globalChatMessage", msg);
     });
 
+    /* -------- Voluntary leave (Return to Lobby before a match finishes) -------- */
+    socket.on("leaveRoom", () => {
+      const roomId = socket.data?.roomId;
+      const role = socket.data?.role;
+      if (!roomId || !role) return;
+
+      safeLeaveQueue(socket);
+      socket.leave(roomId);
+      dropFromRoom(io, roomId, role);
+
+      socket.data.roomId = null;
+      socket.data.role = null;
+      setPresence(io, socket, { status: "idle", passcode: null });
+    });
+
     /* -------- Disconnect -------- */
     socket.on("disconnect", () => {
       // Remove from queue if present
@@ -421,13 +494,7 @@ export function initSocket(httpServer) {
       clearPresence(io, socket);
 
       if (!roomId || !role) return;
-
-      const room = rooms[roomId];
-      if (!room) return;
-
-      room.players[role] = "__LEFT__";
-      safeEmit(io, roomId, "opponentLeft", { role });
-      maybeCleanupRoom(roomId);
+      dropFromRoom(io, roomId, role);
     });
   });
 

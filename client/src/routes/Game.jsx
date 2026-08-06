@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { socket } from "../api/socket";
 import Lobby from "./Lobby";
 import CharacterSelect from "./CharacterSelect";
+import CharacterGuide from "./CharacterGuide";
 import TeamGrid from "../components/TeamGrid";
 import MovesPanel from "../components/MovesPanel";
 import ReplayViewer from "../components/ReplayViewer";
@@ -12,6 +13,7 @@ export default function Game() {
   // Flow
   const [inLobby, setInLobby] = useState(true);
   const [waiting, setWaiting] = useState(true);
+  const [showGuide, setShowGuide] = useState(false);
 
   // Net/Game
   const [roomId, setRoomId] = useState(null);
@@ -57,6 +59,21 @@ export default function Game() {
     const saved = localStorage.getItem("hayashi_player_name");
     if (saved) setMyName(saved);
   }, []);
+
+  // Re-bind to our room if the socket reconnects mid-match (brief network
+  // drop). Socket.IO's connectionStateRecovery covers short gaps, but this
+  // is a belt-and-suspenders fallback for reconnects that land outside that
+  // window — without it the server can still process our moves, but has no
+  // route back to us since our new socket was never re-joined to the room.
+  useEffect(() => {
+    const onConnect = () => {
+      if (roomId && role) {
+        socket.emit("joinRoom", { roomId, role, name: myName });
+      }
+    };
+    socket.on("connect", onConnect);
+    return () => socket.off("connect", onConnect);
+  }, [roomId, role, myName]);
 
   // Socket listeners (single mount)
   useEffect(() => {
@@ -106,6 +123,8 @@ export default function Game() {
       setPendingMove(null);
       setReplayId(null);
       setCutscene(null);
+      setRoomId(null);
+      setRole(null);
       setInLobby(true);
     };
 
@@ -204,7 +223,31 @@ export default function Game() {
     setTarget({ role: whoRole, index: idx });
   };
 
+  // Voluntary exit before a match has finished — character select, the
+  // waiting-for-opponent screen, or the cutscene. Tells the server we're
+  // leaving (so the opponent, if any, is notified and the room is cleaned
+  // up) and resets local state back to the idle lobby.
+  const leaveToLobby = () => {
+    socket.emit("leaveRoom");
+    setWaiting(true);
+    setGame(null);
+    setLog([]);
+    setTeam(null);
+    setTarget(null);
+    setPendingMove(null);
+    setReplayId(null);
+    setCutscene(null);
+    setRoomId(null);
+    setRole(null);
+    setInLobby(true);
+    setChat([]);
+  };
+
   // ---- Renders ----
+  if (showGuide) {
+    return <CharacterGuide onBack={() => setShowGuide(false)} />;
+  }
+
   if (inLobby) {
     return (
       <div className="grid md:grid-cols-3 gap-6 p-6">
@@ -214,6 +257,7 @@ export default function Game() {
             setRoomId={setRoomId}
             setRole={setRole}
             onNameSaved={setMyName}
+            onOpenGuide={() => setShowGuide(true)}
           />
         </div>
         <ChatPanel
@@ -240,6 +284,7 @@ export default function Game() {
             roomId={roomId}
             role={role}
             onSelect={(chosen) => setTeam(chosen)}
+            onLeave={leaveToLobby}
           />
         </div>
         <ChatPanel
@@ -264,6 +309,12 @@ export default function Game() {
         <div className="md:col-span-2 text-center mt-10 text-yellow-400">
           <h2 className="text-2xl font-bold mb-4">Hayashi Academy Arena</h2>
           <p>Waiting for opponent to select their team...</p>
+          <button
+            onClick={leaveToLobby}
+            className="mt-4 text-xs px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300"
+          >
+            Return to Lobby
+          </button>
         </div>
         <ChatPanel
           socket={socket}
@@ -288,6 +339,7 @@ export default function Game() {
           <PreBattleCutscene
             cutscene={cutscene}
             onDone={() => socket.emit("cutsceneComplete", { roomId })}
+            onLeave={leaveToLobby}
           />
         </div>
         <ChatPanel
