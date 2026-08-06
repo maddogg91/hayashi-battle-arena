@@ -15,6 +15,44 @@ npm start        # serves the app + Socket.IO on $PORT (default 8080)
 
 ## Changelog
 
+### 2026-08-06 — Lobby privacy, chat names, and global chat
+
+- **Private match codes no longer leak** — the passcode for a private
+  room was being broadcast to every connected player via the public
+  lobby list (both the server's presence payload and a "Code: ..." chip
+  in the UI), instead of staying known only to the two players joining
+  that room.
+- **Chat now shows real names** — a first-time player's name typed into
+  the lobby gate never made it into the chat display name for that
+  session (it only synced from localStorage on page load), so chat fell
+  back to "Player A"/"Player B" instead.
+- **Chat renamed to "Chat" with Personal/Global tabs** — Personal is the
+  existing private chat between two matched players; Global is a new
+  lobby-wide channel visible to every connected player on any screen,
+  not just people already matched into a room.
+
+### 2026-08-06 — Battle log auto-scroll
+
+- The battle log now automatically scrolls to the latest entry instead
+  of requiring a manual scroll during a match.
+
+### 2026-08-06 — Combat mechanics overhaul
+
+- **Flat 100 HP for everyone** — characters no longer have varied
+  hp/atk/def stats. ATK/DEF only exist as temporary buffs/debuffs a skill
+  can grant, starting from 0.
+- **Round-based turn order** — every living unit on both teams acts
+  exactly once per round, ordered by current speed. Speed only decides
+  order now, not how often a unit gets to act.
+- **New SP (stamina) resource** — starts at 25, caps at 100. Every
+  resolved action grants +5 SP to all living units on both sides, so
+  units later in a round's order bank more SP before their turn — the
+  intended tradeoff for lower speed.
+- **Cooldowns replaced by SP costs** — skills now cost SP instead of
+  going on a fixed cooldown. A free 0-cost Basic Attack is always
+  available so a unit that can't afford any of its real moves yet still
+  has a legal action.
+
 ### 2026-08-06 — Playtest fixes
 
 - **Turn skipping** — stunned/bound characters no longer softlock the
