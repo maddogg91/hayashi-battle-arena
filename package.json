@@ -7,10 +7,10 @@
     "build-frontend": "cd frontend && npm run build",
     "heroku-prebuild": "npm run install-frontend && npm run install-backend",
     "heroku-postbuild": "npm run build-frontend",
-    "start": "node backend/index.js"
+    "start": "cd backend && node src/index.js"
   },
   "engines": {
     "node": "22"
   },
-  "main": "index.js"
+  "main": "backend/src/index.js"
 }
