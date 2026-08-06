@@ -6,11 +6,19 @@ export default function TeamGrid({
   side = "left",
   selected,
   onSelect, // (index) => void
+  highlight = false, // true while a pending move needs a target from this grid
 }) {
   return (
-    <div className="bg-gray-800 rounded-xl p-4 w-full">
-      <h3 className={`text-lg mb-3 ${side === "left" ? "text-green-400" : "text-blue-400"}`}>
+    <div
+      className={`bg-gray-800 rounded-xl p-4 w-full transition
+        ${highlight ? "ring-2 ring-yellow-400 ring-offset-2 ring-offset-gray-900" : ""}
+      `}
+    >
+      <h3 className={`text-lg mb-3 flex items-center gap-2 ${side === "left" ? "text-green-400" : "text-blue-400"}`}>
         {label}
+        {highlight && (
+          <span className="text-xs font-semibold text-yellow-300 animate-pulse">Choose a target</span>
+        )}
       </h3>
       <div className="grid grid-cols-5 gap-3">
         {team.map((c, i) => {
@@ -26,7 +34,7 @@ export default function TeamGrid({
               animate={{ scale: isSel ? 1.06 : 0.95, opacity: dead ? 0.5 : 1 }}
               transition={{ type: "spring", stiffness: 300, damping: 18 }}
               className={`rounded-xl p-3 text-center border-2 w-full
-                ${isSel ? "border-yellow-400" : "border-gray-700"}
+                ${isSel ? "border-yellow-400" : highlight && !dead ? "border-yellow-500/70 animate-pulse" : "border-gray-700"}
                 ${dead ? "bg-gray-700" : "bg-gray-900"}
               `}
             >

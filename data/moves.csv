@@ -39,10 +39,10 @@ Sai Ryuzaki,lacerate,Lacerate,2,enemy,"[{""kind"":""damage"",""base"":13}]", "Le
 Sai Ryuzaki,snare,Snare Field,3,aoe_enemy,"[{""kind"":""effect"",""type"":""bind"",""turns"":1}]", "AOE Bind (1)."
 Sai Ryuzaki,harden,Harden Chains,3,self,"[{""kind"":""mod"",""stat"":""def"",""amount"":3,""turns"":2}]", "+3 DEF (2)."
 
-Kenshin Natasukiama,arc,Elemental Arc,2,enemy,"[{""kind"":""damage"",""base"":13,""ignore"":0.2}]", "Piercing elemental cut."
-Kenshin Natasukiama,shock,Tempest Shock,3,aoe_enemy,"[{""kind"":""damage"",""base"":8},{""kind"":""effect"",""type"":""stun"",""turns"":1}]", "AOE + stun (1)."
-Kenshin Natasukiama,imbue,Elemental Imbue,3,self,"[{""kind"":""mod"",""stat"":""atk"",""amount"":3,""turns"":2}]", "+3 ATK (2)."
-Kenshin Natasukiama,ward,Elemental Ward,3,ally,"[{""kind"":""effect"",""type"":""shield"",""turns"":1}]", "Shield (1)."
+Kenshin,arc,Elemental Arc,2,enemy,"[{""kind"":""damage"",""base"":13,""ignore"":0.2}]", "Piercing elemental cut."
+Kenshin,shock,Tempest Shock,3,aoe_enemy,"[{""kind"":""damage"",""base"":8},{""kind"":""effect"",""type"":""stun"",""turns"":1}]", "AOE + stun (1)."
+Kenshin,imbue,Elemental Imbue,3,self,"[{""kind"":""mod"",""stat"":""atk"",""amount"":3,""turns"":2}]", "+3 ATK (2)."
+Kenshin,ward,Elemental Ward,3,ally,"[{""kind"":""effect"",""type"":""shield"",""turns"":1}]", "Shield (1)."
 
 Sendara Al Vere,lunge,Piercing Lunge,2,enemy,"[{""kind"":""damage"",""base"":15}]", "Heavy thrust."
 Sendara Al Vere,shatter,Guard Shatter,3,enemy,"[{""kind"":""mod"",""stat"":""def"",""amount"":-2,""turns"":2},{""kind"":""damage"",""base"":10}]", "DEF -2 (2) + hit."

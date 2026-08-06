@@ -27,6 +27,9 @@ export default function Game() {
 
   // Target
   const [target, setTarget] = useState(null);
+  // A move that's been picked but still needs a target tapped/clicked:
+  // { key, label, needs: 'enemy'|'ally', desiredRole: 'A'|'B' }
+  const [pendingMove, setPendingMove] = useState(null);
 
   // Cutscene
   const [cutscene, setCutscene] = useState(null);
@@ -88,6 +91,7 @@ export default function Game() {
       setLog(["Opponent left the arena."]);
       setTeam(null);
       setTarget(null);
+      setPendingMove(null);
       setReplayId(null);
       setCutscene(null);
       setInLobby(true);
@@ -121,14 +125,14 @@ export default function Game() {
     game?.actor ? game.teams[game.actor.role][game.actor.i] : null;
   const iAmActing = !!(game?.actor && role === game.actor.role);
 
-  const selectMyTarget = (whoRole, idx) => {
-    if (!iAmActing) return;
-    const unit = game?.teams?.[whoRole]?.[idx];
-    if (!unit || unit.hp <= 0) return;
-    setTarget({ role: whoRole, index: idx });
-  };
+  // Clear any in-progress targeting whenever the acting unit changes (new
+  // turn, or the opponent started acting instead of us).
+  useEffect(() => {
+    setTarget(null);
+    setPendingMove(null);
+  }, [game?.actor?.role, game?.actor?.i]);
 
-  const sendMove = (moveKey) => {
+  const executeMove = (moveKey, forcedTarget) => {
     if (!iAmActing || game?.over) return;
     const myUnit = currentActor;
     if (!myUnit) return;
@@ -140,18 +144,56 @@ export default function Game() {
     const needs = m?.target || "none";
 
     const payload = { move: moveKey };
-    if (["enemy", "ally", "self"].includes(needs)) {
-      if (needs === "self") {
-        payload.target = { role, index: game.actor.i };
-      } else {
-        if (!target) return;
-        const desiredRole = needs === "ally" ? role : role === "A" ? "B" : "A";
-        if (target.role !== desiredRole) return;
-        payload.target = target;
-      }
+    if (needs === "self") {
+      payload.target = { role, index: game.actor.i };
+    } else if (needs === "enemy" || needs === "ally") {
+      const t = forcedTarget || target;
+      if (!t) return;
+      const desiredRole = needs === "ally" ? role : role === "A" ? "B" : "A";
+      if (t.role !== desiredRole) return;
+      payload.target = t;
     }
     socket.emit("playerMove", { roomId, move: payload, role });
     setTarget(null);
+    setPendingMove(null);
+  };
+
+  // Clicking a move either fires immediately (self/AOE, or a target was
+  // already picked on the grid) or — for enemy/ally moves with no target
+  // yet — arms "pending" mode so the next grid tap fires it, in whichever
+  // order the player prefers.
+  const chooseMove = (moveKey) => {
+    if (!iAmActing || game?.over) return;
+    const myUnit = currentActor;
+    if (!myUnit) return;
+
+    const cds = myUnit.cooldowns || {};
+    if ((cds[moveKey] || 0) > 0) return;
+
+    const m = (myUnit.skills || []).find((s) => s.key === moveKey);
+    const needs = m?.target || "none";
+
+    if (needs === "enemy" || needs === "ally") {
+      const desiredRole = needs === "ally" ? role : role === "A" ? "B" : "A";
+      if (target && target.role === desiredRole) {
+        executeMove(moveKey, target);
+      } else {
+        setPendingMove({ key: moveKey, label: m.label, needs, desiredRole });
+      }
+    } else {
+      executeMove(moveKey);
+    }
+  };
+
+  const selectMyTarget = (whoRole, idx) => {
+    if (!iAmActing) return;
+    const unit = game?.teams?.[whoRole]?.[idx];
+    if (!unit || unit.hp <= 0) return;
+    if (pendingMove && pendingMove.desiredRole === whoRole) {
+      executeMove(pendingMove.key, { role: whoRole, index: idx });
+      return;
+    }
+    setTarget({ role: whoRole, index: idx });
   };
 
   // ---- Renders ----
@@ -274,6 +316,7 @@ export default function Game() {
               side="left"
               selected={target?.role === role ? target.index : null}
               onSelect={(i) => selectMyTarget(role, i)}
+              highlight={iAmActing && pendingMove?.desiredRole === role}
             />
             <TeamGrid
               label={`Opponent (${enemyRole})`}
@@ -281,11 +324,14 @@ export default function Game() {
               side="right"
               selected={target?.role === enemyRole ? target.index : null}
               onSelect={(i) => selectMyTarget(enemyRole, i)}
+              highlight={iAmActing && pendingMove?.desiredRole === enemyRole}
             />
           </div>
 
           <div className="mt-2 text-xs text-gray-300">
-            {target
+            {pendingMove
+              ? `${pendingMove.label}: tap a highlighted target to use it.`
+              : target
               ? `Target: ${target.role} #${target.index + 1} — ${
                   game.teams[target.role][target.index].name
                 }`
@@ -294,8 +340,10 @@ export default function Game() {
 
           <MovesPanel
             myUnit={game?.teams?.[game.actor.role]?.[game.actor.i] || {}}
-            canAct={!!(game?.actor && role === game.actor.role) && !game.over}
-            onUse={sendMove}
+            canAct={iAmActing && !game.over}
+            onUse={chooseMove}
+            pendingMove={iAmActing ? pendingMove : null}
+            onCancelPending={() => setPendingMove(null)}
           />
 
           <div className="mt-6 bg-gray-800 p-4 rounded-lg max-w-3xl text-left">
@@ -323,6 +371,7 @@ export default function Game() {
                   setLog([]);
                   setReplayId(null);
                   setTarget(null);
+                  setPendingMove(null);
                   setCutscene(null);
                   setChat([]);
                 }}

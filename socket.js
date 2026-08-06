@@ -307,7 +307,7 @@ export function initSocket(httpServer) {
       room.selections[role] = characters.slice(0, 5);
 
       if (room.selections.A && room.selections.B) {
-        const gameState = initGame(room.selections, roomId);
+        const gameState = initGame(room.selections, roomId, room.names);
         if (gameState.cutscene && gameState.cutscene.length) {
           room.status = "cutscene";
           room.cutsceneAck = { A: false, B: false };

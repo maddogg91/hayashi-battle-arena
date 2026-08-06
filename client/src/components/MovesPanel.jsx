@@ -1,8 +1,13 @@
+import { useState } from "react";
+
 export default function MovesPanel({
   myUnit = {},
   canAct,
   onUse,
+  pendingMove = null,
+  onCancelPending,
 }) {
+  const [hoverKey, setHoverKey] = useState(null);
   const cds = myUnit.cooldowns || {};
   const effects = myUnit.effects || {};
   const skills = myUnit.skills || [];
@@ -20,32 +25,37 @@ export default function MovesPanel({
     return t;
   };
 
-  const tooltip = (s) => {
-    const base = s.desc || `${needsTargetWord(s.target)} • Cooldown ${s.cd}`;
-    return `${s.label} — ${base}`;
-  };
-
   const disabled = (key) => {
     if (cannotAct) return true;
     return (cds[key] || 0) > 0;
   };
 
-  const Btn = ({ skill }) => (
-    <button
-      key={skill.key}
-      onClick={() => onUse(skill.key)}
-      disabled={disabled(skill.key)}
-      title={tooltip(skill)}
-      className={`px-3 py-2 rounded-lg text-sm font-semibold
-        ${disabled(skill.key)
-          ? "bg-gray-600 cursor-not-allowed"
-          : "bg-purple-600 hover:bg-purple-700"}
-      `}
-    >
-      {skill.label}
-      {(cds[skill.key] || 0) > 0 ? ` (${cds[skill.key]})` : ""}
-    </button>
-  );
+  const activeSkill = skills.find((s) => s.key === (hoverKey || pendingMove?.key));
+
+  const Btn = ({ skill }) => {
+    const isPending = pendingMove?.key === skill.key;
+    return (
+      <button
+        key={skill.key}
+        onClick={() => onUse(skill.key)}
+        onMouseEnter={() => setHoverKey(skill.key)}
+        onMouseLeave={() => setHoverKey((k) => (k === skill.key ? null : k))}
+        onFocus={() => setHoverKey(skill.key)}
+        onBlur={() => setHoverKey((k) => (k === skill.key ? null : k))}
+        disabled={disabled(skill.key)}
+        className={`px-3 py-2 rounded-lg text-sm font-semibold transition
+          ${disabled(skill.key)
+            ? "bg-gray-600 cursor-not-allowed"
+            : isPending
+            ? "bg-yellow-500 hover:bg-yellow-600 ring-2 ring-yellow-300 animate-pulse"
+            : "bg-purple-600 hover:bg-purple-700"}
+        `}
+      >
+        {skill.label}
+        {(cds[skill.key] || 0) > 0 ? ` (${cds[skill.key]})` : ""}
+      </button>
+    );
+  };
 
   return (
     <div className="flex flex-col items-center gap-3 mt-6">
@@ -59,6 +69,36 @@ export default function MovesPanel({
 
       <div className="flex items-center justify-center gap-2 flex-wrap">
         {skills.map((s) => <Btn key={s.key} skill={s} />)}
+      </div>
+
+      {/* Always-visible move description — readable on desktop hover and mobile tap alike */}
+      <div className="w-full max-w-xl bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-sm text-gray-200 min-h-[3.75rem]">
+        {pendingMove ? (
+          <div className="flex items-center justify-between gap-3">
+            <span>
+              <span className="font-semibold text-yellow-400">{pendingMove.label}:</span>{" "}
+              Choose {pendingMove.needs === "enemy" ? "an" : "a"} {needsTargetWord(pendingMove.needs).toLowerCase()} target to use it.
+            </span>
+            {onCancelPending && (
+              <button
+                onClick={onCancelPending}
+                className="shrink-0 text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        ) : activeSkill ? (
+          <>
+            <span className="font-semibold text-yellow-400">{activeSkill.label}</span>{" "}
+            <span className="text-gray-400">
+              ({needsTargetWord(activeSkill.target)} • Cooldown {activeSkill.cd})
+            </span>
+            <div className="mt-1">{activeSkill.desc || "No description available."}</div>
+          </>
+        ) : (
+          <span className="text-gray-400">Hover or tap a move to see what it does.</span>
+        )}
       </div>
     </div>
   );

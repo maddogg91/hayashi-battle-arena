@@ -31,21 +31,25 @@ function hitWithIgnore(attacker, defender, addBase, ignoreFrac=0) {
   const d = Math.max(0, Math.floor(effStats(defender).def * (1 - (ignoreFrac||0))));
   return Math.max(5, Math.floor(addBase + a - d));
 }
-function applyDamage(attacker, defender, raw, log) {
+function applyDamage(attacker, defender, raw) {
   let dmg = raw;
+  const notes = [];
   if (defender.effects.shield > 0) {
     const reduced = Math.max(1, Math.floor(dmg * 0.5));
-    log.push(`${defender.name} is shielded (−${dmg - reduced}).`);
+    notes.push(`${defender.name} is shielded (−${dmg - reduced}).`);
     dmg = reduced;
   }
   defender.hp = clamp(defender.hp - dmg, 0, MAX_HP);
   if (defender.effects.reflect > 0 && dmg > 0) {
     const refl = Math.max(1, Math.floor(dmg * 0.5));
     attacker.hp = clamp(attacker.hp - refl, 0, MAX_HP);
-    log.push(`${defender.name} reflects ${refl} to ${attacker.name}.`);
+    notes.push(`${defender.name} reflects ${refl} to ${attacker.name}.`);
   }
-  return dmg;
+  return { dmg, notes };
 }
+
+const EFFECT_LABEL = { stun: "Stun", bind: "Bind", burn: "Burn", shield: "a Shield", reflect: "Reflect" };
+const STAT_LABEL = { atk: "ATK", def: "DEF", spd: "SPD" };
 
 // --- initiative ---
 function everyone(game) { return ["A","B"].flatMap(r => game.teams[r].map((u,i)=>({role:r,i,u}))); }
@@ -79,13 +83,55 @@ function startTurnUpkeep(u, game) {
     game.log.push(`${u.name} suffers ${burnDmg} burn damage.`);
   }
 }
+// Cooldowns recover for the whole acting team on any of their turns — that
+// pacing is intentional. Status effects/mods are handled separately in
+// beginTurn(), once per the *affected* unit's own turn (see below), so a
+// freshly-applied 1-turn stun/shield survives until its target's next turn
+// instead of being wiped out by whichever side happens to act next.
 function endTurn(game, acted) {
   game.teams[acted.role].forEach(p => {
     for (const k of Object.keys(p.cooldowns)) if (p.cooldowns[k] > 0) p.cooldowns[k] -= 1;
-    tickEffects(p);
   });
-  const opp = acted.role === "A" ? "B" : "A";
-  game.teams[opp].forEach(p => tickEffects(p));
+}
+
+// Advances game.actor to the next unit able to act, running upkeep and
+// auto-skipping anyone stunned/bound/dead along the way so the game never
+// waits on a client that has no legal move to send.
+function beginTurn(game) {
+  while (!game.over) {
+    const { role, i } = game.actor;
+    const unit = game.teams[role][i];
+
+    startTurnUpkeep(unit, game);
+    checkWin(game);
+    if (game.over) return;
+
+    if (unit.hp <= 0) {
+      unit.ap -= READY_AP;
+      game.actor = nextActor(game);
+      game.turn = game.actor.role;
+      continue;
+    }
+
+    const actionable = canAct(unit);
+    if (actionable) {
+      game.log.push(`🎯 ${unit.name} is ready to act.`);
+    } else {
+      const reason = unit.effects.stun > 0 ? "stunned" : "bound";
+      game.log.push(`${unit.name} is ${reason} and cannot act — turn skipped.`);
+    }
+
+    // It's this unit's own turn: their personal status effects and stat
+    // mods count down by one now, whether they act or are skipped.
+    tickEffects(unit);
+
+    if (actionable) return;
+
+    endTurn(game, { role });
+    unit.ap -= READY_AP;
+    game.actor = nextActor(game);
+    game.turn = game.actor.role;
+  }
 }
 
 // --- target resolution ---
@@ -104,7 +150,7 @@ function pickTargets(game, actorRole, spec, target) {
 }
 
 // --- CSV action DSL executor ---
-function resolveActions(game, actor, targets, actions, log) {
+function resolveActions(game, actor, targets, actions, log, skillLabel) {
   const arr = Array.isArray(targets) ? targets : [targets];
   const each = (fn) => arr.forEach(fn);
 
@@ -113,36 +159,57 @@ function resolveActions(game, actor, targets, actions, log) {
     if (kind === "damage") {
       const base = Number(step.base || 0);
       const ignore = Number(step.ignore || 0);
-      each(t => applyDamage(actor, t, hitWithIgnore(actor, t, base, ignore), log));
+      each(t => {
+        const { dmg, notes } = applyDamage(actor, t, hitWithIgnore(actor, t, base, ignore));
+        log.push(`${actor.name} attacks ${t.name} with ${skillLabel}, dealing ${dmg} damage.`, ...notes);
+      });
     } else if (kind === "heal") {
       const amt = Number(step.amount || 0);
       const scope = step.target || "self";
       if (scope === "self") {
         actor.hp = clamp(actor.hp + amt, 0, MAX_HP);
+        log.push(`${actor.name} heals for ${amt} HP with ${skillLabel}.`);
       } else if (scope === "ally") {
-        arr.forEach(t => t.hp = clamp(t.hp + amt, 0, MAX_HP));
+        arr.forEach(t => {
+          t.hp = clamp(t.hp + amt, 0, MAX_HP);
+          log.push(`${actor.name} heals ${t.name} for ${amt} HP with ${skillLabel}.`);
+        });
       } else if (scope === "aoe_team") {
         const myTeam = game.teams[game.actor.role].filter(x=>x.hp>0);
         myTeam.forEach(x => x.hp = clamp(x.hp + amt, 0, MAX_HP));
+        log.push(`${actor.name}'s team heals for ${amt} HP with ${skillLabel}.`);
       }
     } else if (kind === "effect") {
       const type = step.type; // stun|bind|burn|shield|reflect
       const turns = Number(step.turns || 1);
       const scope = step.target; // optional override like heal
+      const label = EFFECT_LABEL[type] || type;
       if (!scope) {
-        each(t => addEffect(t, type, turns));
+        each(t => {
+          addEffect(t, type, turns);
+          log.push(`${t.name} is afflicted with ${label} (${turns}) by ${skillLabel}.`);
+        });
       } else if (scope === "self") {
         addEffect(actor, type, turns);
+        log.push(`${actor.name} gains ${label} (${turns}) from ${skillLabel}.`);
       } else if (scope === "aoe_team") {
         game.teams[game.actor.role].forEach(t => addEffect(t, type, turns));
+        log.push(`${actor.name}'s team gains ${label} (${turns}) from ${skillLabel}.`);
       }
     } else if (kind === "mod") {
       const { stat, amount, turns } = step;
-      const chip = { stat, amount: Number(amount||0), turns: Number(turns||1) };
-      each(t => t.mods.push({ ...chip }));
+      const amt = Number(amount || 0);
+      const trn = Number(turns || 1);
+      const chip = { stat, amount: amt, turns: trn };
+      const label = STAT_LABEL[stat] || stat;
+      each(t => {
+        t.mods.push({ ...chip });
+        log.push(`${t.name}'s ${label} ${amt >= 0 ? "rises" : "falls"} by ${Math.abs(amt)} (${trn}) from ${skillLabel}.`);
+      });
     } else if (kind === "recoil") {
       const amt = Number(step.amount || 0);
       actor.hp = clamp(actor.hp - amt, 0, MAX_HP);
+      log.push(`${actor.name} takes ${amt} recoil damage from ${skillLabel}.`);
     }
   }
 }
@@ -154,11 +221,13 @@ function pickDialogue(teamA, teamB) {
   const b = teamB[0]?.name;
   const key1 = `${a}|${b}`;
   const key2 = `${b}|${a}`;
-  const rows = cache.dialogueRows
-    .filter(r =>
-      r.pair === key1 || r.pair === key2 ||
-      r.pair === `${a}|*` || r.pair === `*|${b}` || r.pair === "*|*"
-    )
+
+  // Prefer the most specific dialogue available; fall back to a generic
+  // narrator intro so every matchup gets a cutscene, not just Shou vs Jett.
+  const specific = cache.dialogueRows.filter(r => r.pair === key1 || r.pair === key2);
+  const halfMatch = cache.dialogueRows.filter(r => r.pair === `${a}|*` || r.pair === `*|${b}`);
+  const generic = cache.dialogueRows.filter(r => r.pair === "*|*");
+  const rows = (specific.length ? specific : halfMatch.length ? halfMatch : generic)
     .sort((x,y)=> x.order - y.order);
 
   // Normalize speaker side
@@ -171,7 +240,7 @@ function pickDialogue(teamA, teamB) {
 }
 
 // --- Init from CSV ---
-export function initGame(selections, roomId) {
+export function initGame(selections, roomId, names = {}) {
   // hydrate from characters.csv (keep stats chosen during select if present)
   const charMap = new Map(cache.chars.map(c => [c.name, c]));
 
@@ -199,6 +268,15 @@ export function initGame(selections, roomId) {
   const teamA = hydrateTeam(selections.A);
   const teamB = hydrateTeam(selections.B);
 
+  // If both players picked the same character, tag each with the owning
+  // player's name so they're distinguishable in the UI and battle log.
+  const namesA = new Set(teamA.map(u => u.name));
+  const dupes = new Set(teamB.filter(u => namesA.has(u.name)).map(u => u.name));
+  if (dupes.size) {
+    teamA.forEach(u => { if (dupes.has(u.name)) u.name = `${u.name} (${names.A || "Player A"})`; });
+    teamB.forEach(u => { if (dupes.has(u.name)) u.name = `${u.name} (${names.B || "Player B"})`; });
+  }
+
   const game = {
     teams: { A: teamA, B: teamB },
     log: ["⚔️ The 5v5 battle begins at Hayashi Academy!"],
@@ -210,7 +288,7 @@ export function initGame(selections, roomId) {
 
   game.actor = nextActor(game);
   game.turn = game.actor.role;
-  game.log.push(`🎯 ${game.teams[game.actor.role][game.actor.i].name} is ready to act.`);
+  beginTurn(game);
   games[roomId] = game;
   return game;
 }
@@ -224,27 +302,9 @@ export function handleMove(roomId, playerRole, payload) {
   if (!actor || actor.role !== playerRole) return game;
 
   const me = game.teams[actor.role][actor.i];
-
-  startTurnUpkeep(me, game);
-  if (me.hp <= 0) {
-    checkWin(game);
-    if (!game.over) {
-      me.ap -= READY_AP;
-      game.actor = nextActor(game);
-      game.turn = game.actor.role;
-      game.log.push(`🎯 ${game.teams[game.actor.role][game.actor.i].name} is ready to act.`);
-    }
-    return game;
-  }
-
-  if (!canAct(me)) {
-    game.log.push(`${me.name} is unable to act!`);
-    me.ap -= READY_AP;
-    game.actor = nextActor(game);
-    game.turn = game.actor.role;
-    game.log.push(`🎯 ${game.teams[game.actor.role][game.actor.i].name} is ready to act.`);
-    return game;
-  }
+  // beginTurn() guarantees game.actor always points at a unit that can
+  // currently act, so this is just a defensive guard.
+  if (!canAct(me)) return game;
 
   const { move, target } = typeof payload === "string" ? { move: payload, target: null } : payload;
   const cds = me.cooldowns || {};
@@ -255,10 +315,10 @@ export function handleMove(roomId, playerRole, payload) {
   if (!targets || targets.length === 0) return game;
 
   const log = [];
-  resolveActions(game, me, targets, skill.actions || [], log);
+  resolveActions(game, me, targets, skill.actions || [], log, skill.label);
   cds[skill.key] = skill.cd;
 
-  game.log.push(`${me.name} uses ${skill.label}.`, ...log);
+  game.log.push(...log);
 
   checkWin(game);
   if (!game.over) {
@@ -266,7 +326,7 @@ export function handleMove(roomId, playerRole, payload) {
     me.ap -= READY_AP;
     game.actor = nextActor(game);
     game.turn = game.actor.role;
-    game.log.push(`🎯 ${game.teams[game.actor.role][game.actor.i].name} is ready to act.`);
+    beginTurn(game);
   }
 
   return { ...game };
