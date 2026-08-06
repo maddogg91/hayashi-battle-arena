@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { socket } from "../api/socket";
 import LobbyUsersPanel from "../components/LobbyUsersPanel";
 
-export default function Lobby({ onReady, setRoomId, setRole }) {
+export default function Lobby({ onReady, setRoomId, setRole, onNameSaved }) {
   const [name, setName] = useState("");
   const [hasName, setHasName] = useState(false);
   const [loadingPublic, setLoadingPublic] = useState(false);
@@ -18,6 +18,7 @@ export default function Lobby({ onReady, setRoomId, setRole }) {
       setName(saved);
       setHasName(true);
       socket.emit("presenceHello", { name: saved });
+      onNameSaved?.(saved);
     }
   }, []);
 
@@ -71,6 +72,7 @@ export default function Lobby({ onReady, setRoomId, setRole }) {
     localStorage.setItem("hayashi_player_name", trimmed);
     setHasName(true);
     socket.emit("presenceHello", { name: trimmed }); // <— announce presence
+    onNameSaved?.(trimmed);
   };
 
   const findMatch = () => {

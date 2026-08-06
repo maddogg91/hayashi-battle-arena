@@ -47,6 +47,11 @@ export default function Game() {
   const handleChatPush = (msg) => setChat((c) => [...c, msg]);
   const chatDisplayName = myName || (role ? `Player ${role}` : "Player");
 
+  // Global (lobby-wide) chat — not tied to a room, available on every screen
+  const [globalChat, setGlobalChat] = useState([]);
+  const handleGlobalChatHistory = (hist) => setGlobalChat(hist || []);
+  const handleGlobalChatPush = (msg) => setGlobalChat((c) => [...c, msg]);
+
   // load my saved name
   useEffect(() => {
     const saved = localStorage.getItem("hayashi_player_name");
@@ -208,6 +213,7 @@ export default function Game() {
             onReady={() => setInLobby(false)}
             setRoomId={setRoomId}
             setRole={setRole}
+            onNameSaved={setMyName}
           />
         </div>
         <ChatPanel
@@ -218,6 +224,9 @@ export default function Game() {
           messages={chat}
           onHistory={handleChatHistory}
           onPush={handleChatPush}
+          globalMessages={globalChat}
+          onGlobalHistory={handleGlobalChatHistory}
+          onGlobalPush={handleGlobalChatPush}
         />
       </div>
     );
@@ -241,6 +250,9 @@ export default function Game() {
           messages={chat}
           onHistory={handleChatHistory}
           onPush={handleChatPush}
+          globalMessages={globalChat}
+          onGlobalHistory={handleGlobalChatHistory}
+          onGlobalPush={handleGlobalChatPush}
         />
       </div>
     );
@@ -261,6 +273,9 @@ export default function Game() {
           messages={chat}
           onHistory={handleChatHistory}
           onPush={handleChatPush}
+          globalMessages={globalChat}
+          onGlobalHistory={handleGlobalChatHistory}
+          onGlobalPush={handleGlobalChatPush}
         />
       </div>
     );
@@ -283,6 +298,9 @@ export default function Game() {
           messages={chat}
           onHistory={handleChatHistory}
           onPush={handleChatPush}
+          globalMessages={globalChat}
+          onGlobalHistory={handleGlobalChatHistory}
+          onGlobalPush={handleGlobalChatPush}
         />
       </div>
     );
@@ -396,6 +414,9 @@ export default function Game() {
           messages={chat}
           onHistory={handleChatHistory}
           onPush={handleChatPush}
+          globalMessages={globalChat}
+          onGlobalHistory={handleGlobalChatHistory}
+          onGlobalPush={handleGlobalChatPush}
         />
       </div>
     );

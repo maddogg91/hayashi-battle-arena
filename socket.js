@@ -23,6 +23,10 @@ const rooms = Object.create(null);
 const passcodeRooms = Object.create(null);    // passcode -> roomId
 const replays = Object.create(null);          // in-memory index of replays persisted to disk
 
+// Global chat: lobby-wide, not tied to any room — visible to every
+// connected player regardless of what screen they're on.
+const globalChat = [];
+
 // Public queue
 const waitQueue = [];                          // sockets waiting for public match
 const inQueue = new Set();                     // socket.id currently queued
@@ -36,10 +40,12 @@ const now = () => Date.now();
 
 /* -------------------- Presence helpers -------------------- */
 function presenceList() {
-  // Show everyone not "playing" so active matches don't clutter the lobby
+  // Show everyone not "playing" so active matches don't clutter the lobby.
+  // Passcodes are intentionally omitted here — they're only ever known to
+  // the two players in that private room, never broadcast to the lobby.
   return Object.values(presence)
     .filter(p => p.status !== "playing")
-    .map(p => ({ id: p.id, name: p.name, status: p.status, passcode: p.passcode || null }));
+    .map(p => ({ id: p.id, name: p.name, status: p.status }));
 }
 function broadcastPresence(io) {
   io.emit("lobbyUsers", presenceList());
@@ -252,6 +258,10 @@ export function initSocket(httpServer) {
   });
 
   io.on("connection", (socket) => {
+    // Send the current global chat history right away so it's available
+    // even before the client explicitly asks for it.
+    socket.emit("globalChatHistory", globalChat);
+
     /* -------- Presence -------- */
     socket.on("presenceHello", ({ name } = {}) => {
       const nm = (name || "").trim().slice(0, 40) || "Player";
@@ -378,6 +388,26 @@ export function initSocket(httpServer) {
       room.chat.push(msg);
       if (room.chat.length > 100) room.chat.shift();
       io.to(roomId).emit("chatMessage", msg);
+    });
+
+    /* -------- Global chat (lobby-wide, not room-scoped) -------- */
+    socket.on("globalChatHistoryRequest", () => socket.emit("globalChatHistory", globalChat));
+    socket.on("globalChatSend", ({ text, name } = {}) => {
+      if (typeof text !== "string") return;
+
+      const clean = text.trim().slice(0, 500);
+      if (!clean) return;
+
+      const msg = {
+        id: `${now()}-${Math.random().toString(36).slice(2, 7)}`,
+        text: clean,
+        name: (name || socket.data?.name || "Player").slice(0, 40),
+        ts: now(),
+      };
+
+      globalChat.push(msg);
+      if (globalChat.length > 200) globalChat.shift();
+      io.emit("globalChatMessage", msg);
     });
 
     /* -------- Disconnect -------- */

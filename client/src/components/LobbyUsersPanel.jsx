@@ -34,11 +34,6 @@ export default function LobbyUsersPanel({ socket, myName }) {
           <div key={u.id} className="flex items-center justify-between bg-gray-900 rounded-lg px-3 py-2">
             <div className="text-sm text-gray-200 truncate">{u.name === myName ? `${u.name} (you)` : u.name}</div>
             <div className="flex items-center gap-2">
-              {u.status === "private_wait" && u.passcode && (
-                <span className="text-[10px] px-2 py-0.5 rounded bg-yellow-700 text-yellow-100">
-                  Code: {u.passcode}
-                </span>
-              )}
               <span className={`text-[10px] px-2 py-0.5 rounded ${statusChip(u.status)}`}>
                 {u.status.replace("_", " ")}
               </span>
