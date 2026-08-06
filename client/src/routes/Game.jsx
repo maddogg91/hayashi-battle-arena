@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { socket } from "./api";
+import { socket } from "../api/socket";
 import Lobby from "./Lobby";
 import CharacterSelect from "./CharacterSelect";
-import TeamGrid from "./components/TeamGrid";
-import MovesPanel from "./components/MovesPanel";
-import ReplayViewer from "./components/ReplayViewer";
-import PreBattleCutscene from "./components/PreBattleCutscene";
-import ChatPanel from "./components/ChatPanel";
+import TeamGrid from "../components/TeamGrid";
+import MovesPanel from "../components/MovesPanel";
+import ReplayViewer from "../components/ReplayViewer";
+import PreBattleCutscene from "../components/PreBattleCutscene";
+import ChatPanel from "../components/ChatPanel";
 
 export default function Game() {
   // Flow

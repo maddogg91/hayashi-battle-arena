@@ -1,5 +1,4 @@
-// backend/src/game/engine.js
-import { loadRoster } from "../../data/rosterLoader.js";
+import { loadRoster } from "../data/rosterLoader.js";
 
 const MAX_HP = 100;
 const READY_AP = 100;

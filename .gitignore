@@ -1,2 +1,9 @@
 .env
 story/
+
+node_modules/
+client/node_modules/
+public/app/
+data/replays/
+*.log
+.DS_Store

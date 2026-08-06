@@ -1,16 +1,26 @@
 {
-  "name": "hayashi battle",
-  "description": "Maddogg Software customer portal",
+  "name": "hayashi-battle-arena",
+  "description": "Hayashi Academy Battle Arena: real-time 5v5 turn-based battler",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "main": "index.js",
   "scripts": {
-	"install-frontend": "cd frontend && npm install",
-    "install-backend": "cd backend && npm install",
-    "build-frontend": "cd frontend && npm run build",
-    "heroku-prebuild": "npm run install-frontend && npm run install-backend",
-    "heroku-postbuild": "npm run build-frontend",
-    "start": "cd backend && node src/index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "build": "cd client && npm install && npm run build"
   },
   "engines": {
     "node": "22"
   },
-  "main": "backend/src/index.js"
+  "dependencies": {
+    "cors": "^2.8.5",
+    "csv-parse": "^6.1.0",
+    "express": "^4.19.2",
+    "nanoid": "^5.1.6",
+    "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
 }

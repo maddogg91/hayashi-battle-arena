@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { socket } from "./api";
-import LobbyUsersPanel from "./components/LobbyUsersPanel";
+import { socket } from "../api/socket";
+import LobbyUsersPanel from "../components/LobbyUsersPanel";
 
 export default function Lobby({ onReady, setRoomId, setRole }) {
   const [name, setName] = useState("");

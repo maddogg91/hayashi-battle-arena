@@ -1,5 +1,5 @@
 import express from "express";
-import { reloadData } from "../game/engine.js";
+import { reloadData } from "../../game/engine.js";
 const router = express.Router();
 
 router.post("/reload-data", (req, res) => {

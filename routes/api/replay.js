@@ -1,5 +1,5 @@
 import express from "express";
-import { loadReplayFromDisk } from "../replays.js";
+import { loadReplayFromDisk } from "../../replays.js";
 const router = express.Router();
 
 router.get("/:id", (req, res) => {

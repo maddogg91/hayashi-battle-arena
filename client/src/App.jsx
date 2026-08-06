@@ -1,4 +1,4 @@
-import Game from "./Game";
+import Game from "./routes/Game";
 
 export default function App() {
   return (

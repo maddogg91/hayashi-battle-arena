@@ -6,7 +6,7 @@ const nanoid = customAlphabet("abcdef0123456789", 10);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const REPLAY_DIR = path.join(__dirname, "..", "data");
+const REPLAY_DIR = path.join(__dirname, "data", "replays");
 const REPLAY_PATH = (id) => path.join(REPLAY_DIR, `${id}.json`);
 
 export function saveReplayToDisk(payload) {

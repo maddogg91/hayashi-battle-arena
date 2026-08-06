@@ -4,6 +4,7 @@
 import { Server } from "socket.io";
 import crypto from "crypto";
 import { initGame, handleMove, getGame } from "./game/engine.js";
+import { saveReplayToDisk } from "./replays.js";
 
 /**
  * Room shape:
@@ -20,7 +21,7 @@ import { initGame, handleMove, getGame } from "./game/engine.js";
 
 const rooms = Object.create(null);
 const passcodeRooms = Object.create(null);    // passcode -> roomId
-const replays = Object.create(null);          // simple in-memory replay store
+const replays = Object.create(null);          // in-memory index of replays persisted to disk
 
 // Public queue
 const waitQueue = [];                          // sockets waiting for public match
@@ -348,14 +349,13 @@ export function initSocket(httpServer) {
     socket.on("saveReplay", ({ roomId }) => {
       const state = getGame(roomId);
       if (!state) return;
-      const replayId = `rep_${rid(6)}`;
-      replays[replayId] = {
-        id: replayId,
-        ts: now(),
+      const replayId = saveReplayToDisk({
         roomId,
+        ts: now(),
         teams: state.teams,
         log: state.log,
-      };
+      });
+      replays[replayId] = { id: replayId, ts: now(), roomId, turns: state.log?.length || 0 };
       io.to(roomId).emit("replaySaved", { replayId });
     });
 

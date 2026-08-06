@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { socket, backendUrl } from "./api";
+import { socket, backendUrl } from "../api/socket";
 
 export default function CharacterSelect({ roomId, role, onSelect }) {
   const [pool, setPool] = useState([]);
@@ -9,7 +9,7 @@ export default function CharacterSelect({ roomId, role, onSelect }) {
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    fetch(`${backendUrl}/roster`)
+    fetch(`${backendUrl}/api/roster`)
       .then((r) => r.json())
       .then((data) => setPool(data.chars || []))
       .catch(() => setLoadError("Could not load the roster. Is the server running?"));
