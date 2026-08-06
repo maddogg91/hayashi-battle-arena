@@ -1,84 +1,29 @@
-import { useMemo, useState } from "react";
-import { socket } from "./api";
-
-// quick helper to build a fighter
-function f(name, type, { hp, atk, def, img }) {
-  return { name, type, hp, atk, def, img };
-}
-
-/**
- * Baseline stat presets by archetype (you can tweak anytime)
- * - hp: 70–125
- * - atk: 8–22
- * - def: 2–12
- */
-const presets = {
-  tank:       { hp: 125, atk: 12, def: 12, img: "🛡️" },
-  healer:     { hp: 95,  atk: 10, def: 9,  img: "✨" },
-  support:    { hp: 95,  atk: 11, def: 8,  img: "🎼" },
-  summoner:   { hp: 100, atk: 12, def: 8,  img: "📜" },
-  mage:       { hp: 100, atk: 18, def: 6,  img: "🔮" },
-  fireMage:   { hp: 100, atk: 19, def: 5,  img: "🔥" },
-  lightMage:  { hp: 100, atk: 17, def: 7,  img: "🌞" },
-  darkMage:   { hp: 100, atk: 19, def: 6,  img: "🌑" },
-  chainMage:  { hp: 100, atk: 17, def: 7,  img: "⛓️" },
-  barrier:    { hp: 110, atk: 12, def: 11, img: "🪄" },
-  swordsman:  { hp: 100, atk: 18, def: 7,  img: "⚔️" },
-  speedy:     { hp: 90,  atk: 20, def: 5,  img: "💫" },
-  monk:       { hp: 105, atk: 16, def: 8,  img: "🧘" },
-  brawler:    { hp: 110, atk: 19, def: 7,  img: "🥊" },
-  martial:    { hp: 105, atk: 18, def: 7,  img: "🥋" },
-  spear:      { hp: 110, atk: 17, def: 9,  img: "🗡️" },
-  archer:     { hp: 95,  atk: 20, def: 5,  img: "🏹" },
-  sniper:     { hp: 95,  atk: 21, def: 4,  img: "🎯" },
-  explosions: { hp: 95,  atk: 21, def: 4,  img: "💥" },
-  tech:       { hp: 90,  atk: 20, def: 4,  img: "🤖" },
-  charm:      { hp: 95,  atk: 15, def: 7,  img: "💖" },
-  intangible: { hp: 95,  atk: 19, def: 6,  img: "🔥" },
-};
-
-const POOL = [
-  f("Arisa Huang", "Creature Summoner", presets.summoner),
-  f("Jett Kimura", "Magical Gunner", presets.mage),
-  f("Shou", "Demon-possessed swordsman with magical prowess", { ...presets.swordsman, atk: 20, img: "👹" }),
-  f("Maako Karsean", "Fire user, turns into intangible flames", presets.intangible),
-  f("Erika Sharp", "Healer, angelic spells to hurt/bind", { ...presets.healer, img: "👼" }),
-  f("Star Trethowan", "Ninja that uses her charms to captivate enemies", presets.charm),
-  f("Kairu Yusoko", "Light magic + bo staff", presets.lightMage),
-  f("Sai Ryuzaki", "Magical chain binds & transforms", presets.chainMage),
-  f("Kenshin Natasukiama", "Elemental magic from a sword", { ...presets.swordsman, atk: 19, img: "🌪️" }),
-  f("Sendara Al Vere", "Spear user, extremely strong/durable", presets.spear),
-  f("Liara Mitsuke", "Swordswoman, extremely fast ronin", presets.speedy),
-  f("Tana Phoenix", "Fire from palms and body", presets.fireMage),
-  f("Ben Sherman", "Martial artist, ki-based (Kaioken-ish)", presets.martial),
-  f("Paul Watoski", "Tech genius with robots, physically weak", presets.tech),
-  f("Kaitsu Hoshigaki", "Speedy magical archer", presets.archer),
-  f("Alasia Maltese", "Ranged explosions", presets.explosions),
-  f("Lyra", "Magic + healing spells", { ...presets.healer, atk: 12, img: "🌟" }),
-  f("Robert Asuko", "Boxer, superhuman strength/reflexes", presets.brawler),
-  f("Soren Harutaki", "Shield spells/barriers/reflect", presets.barrier),
-  f("Arthur Kinglion", "Magic sniper with bullets", presets.sniper),
-  f("Kobayashi", "Monk with chi-based attacks", presets.monk),
-  f("Hakudoshi Inoue", "Tank, extremely durable & heavy hits", presets.tank),
-  f("Sora Lorashu", "Elemental magic swordsman", { ...presets.swordsman, img: "🌈" }),
-  f("Allie Mustang", "Uses dark magic", presets.darkMage),
-  f("Kara Higgins", "Muse, flute to buff/curse", presets.support),
-];
+import { useEffect, useMemo, useState } from "react";
+import { socket, backendUrl } from "./api";
 
 export default function CharacterSelect({ roomId, role, onSelect }) {
+  const [pool, setPool] = useState([]);
+  const [loadError, setLoadError] = useState(null);
   const [selected, setSelected] = useState([]);
   const [locked, setLocked] = useState(false);
   const [query, setQuery] = useState("");
 
+  useEffect(() => {
+    fetch(`${backendUrl}/roster`)
+      .then((r) => r.json())
+      .then((data) => setPool(data.chars || []))
+      .catch(() => setLoadError("Could not load the roster. Is the server running?"));
+  }, []);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return POOL;
-    return POOL.filter(
+    if (!q) return pool;
+    return pool.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
         c.type.toLowerCase().includes(q)
     );
-  }, [query]);
+  }, [query, pool]);
 
   const toggleCharacter = (char) => {
     if (locked) return;
@@ -110,6 +55,8 @@ export default function CharacterSelect({ roomId, role, onSelect }) {
         {role ? `You are Player ${role}` : "Assigning role..."}
       </p>
 
+      {loadError && <p className="text-red-400 mb-4">{loadError}</p>}
+
       <div className="flex items-center gap-3 mb-5">
         <input
           value={query}
@@ -124,6 +71,10 @@ export default function CharacterSelect({ roomId, role, onSelect }) {
           Clear
         </button>
       </div>
+
+      {!loadError && pool.length === 0 && (
+        <p className="text-gray-400 mb-6">Loading roster...</p>
+      )}
 
       <div className="grid grid-cols-5 gap-4 max-w-6xl w-full px-6">
         {filtered.map((char) => {

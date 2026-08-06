@@ -1,23 +1,24 @@
 import express from "express";
 import http from "http";
+import path from "path";
+import { fileURLToPath } from "url";
 import cors from "cors";
-import { Server } from "socket.io";
 import { initSocket } from "./socket.js";
 import healthRouter from "./routes/health.js";
 import replayRouter from "./routes/replay.js";
 import adminRouter from "./routes/admin.js";
+import rosterRouter from "./routes/roster.js";
 
-
-
-
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(cors());
-app.use(express.json());
 app.use(cors({ origin: "*" }));
+app.use(express.json());
 app.use("/health", healthRouter);
 app.use("/replay", replayRouter);
 app.use("/admin", adminRouter);
+app.use("/roster", rosterRouter);
 
 app.use(express.static(path.join(__dirname, "..", "public")));
 
@@ -27,12 +28,7 @@ app.get("*", (_req, res) => {
 });
 
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*" },
-});
-
-initSocket(io);
+initSocket(server);
 
 const PORT = process.env.PORT || 8080;
-server.listen(PORT, ("0.0.0.0") => console.log(`✅ Server running on port ${PORT}`));
-
+server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server running on port ${PORT}`));

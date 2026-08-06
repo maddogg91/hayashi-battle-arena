@@ -275,6 +275,8 @@ export function handleMove(roomId, playerRole, payload) {
 
 export function getGame(roomId) { return games[roomId]; }
 
+export function getChars() { return cache.chars; }
+
 // Hot-reload endpoint utility
 export function reloadData() {
   cache = loadRoster();
