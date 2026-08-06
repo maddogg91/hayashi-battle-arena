@@ -1,0 +1,15 @@
+{
+  "name": "hayashi battle",
+  "description": "Maddogg Software customer portal",
+  "scripts": {
+	"install-frontend": "cd frontend && npm install",
+    "install-backend": "cd backend && npm install",
+    "build-frontend": "cd frontend && npm run build",
+    "heroku-prebuild": "npm run install-frontend && npm run install-backend",
+    "heroku-postbuild": "npm run build-frontend",
+    "start": "node backend/index.js"
+  },
+  "engines": {
+    "node": "18"
+  },
+  "main": "index.js"
