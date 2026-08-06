@@ -128,6 +128,18 @@ export default function Lobby({ onReady, setRoomId, setRole }) {
       <div className="md:col-span-2 space-y-6">
         <h1 className="text-3xl font-bold text-yellow-400">Welcome, {name}!</h1>
 
+        <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
+          <h2 className="text-lg font-semibold text-yellow-400 mb-3">What's New</h2>
+          <ul className="text-sm text-gray-300 space-y-1.5 list-disc list-inside">
+            <li>Stunned/bound characters now automatically skip their turn instead of stalling the match.</li>
+            <li>The battle log now describes exactly what happened, e.g. "Jett attacks Maako with Piercing Round, dealing 12 damage."</li>
+            <li>Kenshin's moveset is fixed — he now has skills to use in battle.</li>
+            <li>Every matchup now gets a pre-battle cutscene.</li>
+            <li>Moves show a description panel on hover/tap, and picking a target is easier — highlight shows valid targets in either pick order.</li>
+            <li>If both players pick the same character, each is labeled with its owner's name to avoid confusion.</li>
+          </ul>
+        </div>
+
         <div className="grid md:grid-cols-2 gap-6">
           {/* Quick Match */}
           <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
