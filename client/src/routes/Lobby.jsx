@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { socket } from "../api/socket";
 import LobbyUsersPanel from "../components/LobbyUsersPanel";
 
-export default function Lobby({ onReady, setRoomId, setRole }) {
+export default function Lobby({ onReady, setRoomId, setRole, onNameSaved }) {
   const [name, setName] = useState("");
   const [hasName, setHasName] = useState(false);
   const [loadingPublic, setLoadingPublic] = useState(false);
@@ -18,6 +18,7 @@ export default function Lobby({ onReady, setRoomId, setRole }) {
       setName(saved);
       setHasName(true);
       socket.emit("presenceHello", { name: saved });
+      onNameSaved?.(saved);
     }
   }, []);
 
@@ -71,6 +72,7 @@ export default function Lobby({ onReady, setRoomId, setRole }) {
     localStorage.setItem("hayashi_player_name", trimmed);
     setHasName(true);
     socket.emit("presenceHello", { name: trimmed }); // <— announce presence
+    onNameSaved?.(trimmed);
   };
 
   const findMatch = () => {
@@ -131,11 +133,11 @@ export default function Lobby({ onReady, setRoomId, setRole }) {
         <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
           <h2 className="text-lg font-semibold text-yellow-400 mb-3">What's New</h2>
           <ul className="text-sm text-gray-300 space-y-1.5 list-disc list-inside">
-            <li>Stunned/bound characters now automatically skip their turn instead of stalling the match.</li>
-            <li>The battle log now describes exactly what happened, e.g. "Jett attacks Maako with Piercing Round, dealing 12 damage."</li>
-            <li>Kenshin's moveset is fixed — he now has skills to use in battle.</li>
-            <li>Every matchup now gets a pre-battle cutscene.</li>
-            <li>Moves show a description panel on hover/tap, and picking a target is easier — highlight shows valid targets in either pick order.</li>
+            <li>Private match codes are no longer visible to the rest of the lobby — only you and your opponent ever see it.</li>
+            <li>Chat now shows your real name instead of falling back to "Player A"/"Player B", and is split into Personal (your match) and Global (everyone online) tabs.</li>
+            <li>The battle log auto-scrolls to the latest entry.</li>
+            <li>New SP (stamina) system: everyone has a flat 100 HP, skills cost SP instead of using cooldowns, and turn order is set by speed each round.</li>
+            <li>Every matchup now gets a pre-battle cutscene, and moves show a description panel with easier targeting.</li>
             <li>If both players pick the same character, each is labeled with its owner's name to avoid confusion.</li>
           </ul>
         </div>

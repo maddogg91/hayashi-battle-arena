@@ -8,7 +8,7 @@ export default function MovesPanel({
   onCancelPending,
 }) {
   const [hoverKey, setHoverKey] = useState(null);
-  const cds = myUnit.cooldowns || {};
+  const sp = myUnit.sp ?? 0;
   const effects = myUnit.effects || {};
   const skills = myUnit.skills || [];
 
@@ -25,9 +25,10 @@ export default function MovesPanel({
     return t;
   };
 
-  const disabled = (key) => {
+  const canAfford = (skill) => sp >= (skill.cost || 0);
+  const disabled = (skill) => {
     if (cannotAct) return true;
-    return (cds[key] || 0) > 0;
+    return !canAfford(skill);
   };
 
   const activeSkill = skills.find((s) => s.key === (hoverKey || pendingMove?.key));
@@ -42,9 +43,9 @@ export default function MovesPanel({
         onMouseLeave={() => setHoverKey((k) => (k === skill.key ? null : k))}
         onFocus={() => setHoverKey(skill.key)}
         onBlur={() => setHoverKey((k) => (k === skill.key ? null : k))}
-        disabled={disabled(skill.key)}
+        disabled={disabled(skill)}
         className={`px-3 py-2 rounded-lg text-sm font-semibold transition
-          ${disabled(skill.key)
+          ${disabled(skill)
             ? "bg-gray-600 cursor-not-allowed"
             : isPending
             ? "bg-yellow-500 hover:bg-yellow-600 ring-2 ring-yellow-300 animate-pulse"
@@ -52,14 +53,17 @@ export default function MovesPanel({
         `}
       >
         {skill.label}
-        {(cds[skill.key] || 0) > 0 ? ` (${cds[skill.key]})` : ""}
+        <span className="ml-1 text-xs opacity-80">({skill.cost || 0} SP)</span>
       </button>
     );
   };
 
   return (
     <div className="flex flex-col items-center gap-3 mt-6">
-      <div className="flex gap-2 text-xs text-gray-300">
+      <div className="flex items-center gap-3 text-xs text-gray-300">
+        <span className="px-2 py-1 bg-blue-900 border border-blue-600 rounded font-semibold text-blue-200">
+          SP {sp}/100
+        </span>
         {effects.stun > 0 && <span className="px-2 py-1 bg-red-700 rounded">Stunned {effects.stun}</span>}
         {effects.bind > 0 && <span className="px-2 py-1 bg-pink-700 rounded">Bound {effects.bind}</span>}
         {effects.burn > 0 && <span className="px-2 py-1 bg-orange-700 rounded">Burn {effects.burn}</span>}
@@ -92,7 +96,7 @@ export default function MovesPanel({
           <>
             <span className="font-semibold text-yellow-400">{activeSkill.label}</span>{" "}
             <span className="text-gray-400">
-              ({needsTargetWord(activeSkill.target)} • Cooldown {activeSkill.cd})
+              ({needsTargetWord(activeSkill.target)} • {activeSkill.cost || 0} SP)
             </span>
             <div className="mt-1">{activeSkill.desc || "No description available."}</div>
           </>

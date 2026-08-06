@@ -95,7 +95,7 @@ export default function CharacterSelect({ roomId, role, onSelect }) {
               <p className="font-bold mt-2">{char.name}</p>
               <p className="text-xs text-gray-300 mt-1">{char.type}</p>
               <p className="text-sm text-gray-400 mt-2">
-                ❤️{char.hp} ⚔️{char.atk} 🛡️{char.def}
+                ❤️ 100 HP ⚡ {char.spd} SPD
               </p>
             </button>
           );
