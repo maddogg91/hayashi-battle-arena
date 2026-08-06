@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { socket } from "../api/socket";
 import LobbyUsersPanel from "../components/LobbyUsersPanel";
 
-export default function Lobby({ onReady, setRoomId, setRole, onNameSaved }) {
+export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpenGuide }) {
   const [name, setName] = useState("");
   const [hasName, setHasName] = useState(false);
   const [loadingPublic, setLoadingPublic] = useState(false);
@@ -93,6 +93,13 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved }) {
     socket.emit("privateMatch", { passcode: pass, name: name.trim() });
   };
 
+  const cancelPrivate = () => {
+    socket.emit("cancelPrivateMatch");
+    setPrivStatus("");
+    setWaitingCode("");
+    setLoadingPrivate(false);
+  };
+
   if (!hasName) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen text-gray-200 bg-gray-900">
@@ -128,17 +135,27 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved }) {
   return (
     <div className="grid md:grid-cols-3 gap-6 p-6 min-h-screen bg-gray-900 text-gray-200">
       <div className="md:col-span-2 space-y-6">
-        <h1 className="text-3xl font-bold text-yellow-400">Welcome, {name}!</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-yellow-400">Welcome, {name}!</h1>
+          {onOpenGuide && (
+            <button
+              onClick={onOpenGuide}
+              className="text-sm px-4 py-2 rounded-lg bg-purple-700 hover:bg-purple-600 font-semibold"
+            >
+              📖 Character Guide
+            </button>
+          )}
+        </div>
 
         <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
           <h2 className="text-lg font-semibold text-yellow-400 mb-3">What's New</h2>
           <ul className="text-sm text-gray-300 space-y-1.5 list-disc list-inside">
+            <li>Fixed attacks appearing "stuck" after a brief connection drop — battles now recover cleanly instead of losing the ability to act.</li>
+            <li>You can now cancel a pending private match, and Return to Lobby from character select, the waiting screen, or the cutscene.</li>
+            <li>New Character Guide (📖 above) — browse every fighter's profile and full skill list before you draft.</li>
             <li>Private match codes are no longer visible to the rest of the lobby — only you and your opponent ever see it.</li>
             <li>Chat now shows your real name instead of falling back to "Player A"/"Player B", and is split into Personal (your match) and Global (everyone online) tabs.</li>
-            <li>The battle log auto-scrolls to the latest entry.</li>
             <li>New SP (stamina) system: everyone has a flat 100 HP, skills cost SP instead of using cooldowns, and turn order is set by speed each round.</li>
-            <li>Every matchup now gets a pre-battle cutscene, and moves show a description panel with easier targeting.</li>
-            <li>If both players pick the same character, each is labeled with its owner's name to avoid confusion.</li>
           </ul>
         </div>
 
@@ -184,6 +201,12 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved }) {
               <div className="mt-3 text-sm text-gray-300">
                 Waiting for an opponent to join with passcode{" "}
                 <span className="font-semibold text-yellow-300">{waitingCode}</span>…
+                <button
+                  onClick={cancelPrivate}
+                  className="ml-3 text-xs px-3 py-1 rounded bg-red-700 hover:bg-red-600 text-white font-semibold"
+                >
+                  Cancel
+                </button>
               </div>
             )}
             {privStatus === "error" && (

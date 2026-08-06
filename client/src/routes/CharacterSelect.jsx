@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { socket, backendUrl } from "../api/socket";
 
-export default function CharacterSelect({ roomId, role, onSelect }) {
+export default function CharacterSelect({ roomId, role, onSelect, onLeave }) {
   const [pool, setPool] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [selected, setSelected] = useState([]);
@@ -48,6 +48,16 @@ export default function CharacterSelect({ roomId, role, onSelect }) {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center py-10">
+      {onLeave && (
+        <div className="w-full max-w-6xl px-6 flex justify-end mb-2">
+          <button
+            onClick={onLeave}
+            className="text-xs px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300"
+          >
+            Return to Lobby
+          </button>
+        </div>
+      )}
       <h2 className="text-3xl font-bold mb-3 text-yellow-400">
         Select Your 5 Fighters ({selected.length}/5)
       </h2>
