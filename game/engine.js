@@ -1,7 +1,22 @@
 import { loadRoster } from "../data/rosterLoader.js";
 
 const MAX_HP = 100;
-const READY_AP = 100;
+const START_SP = 25;
+const MAX_SP = 100;
+const SP_GAIN_PER_ACTION = 5;
+
+// Every character always has this available regardless of SP or the CSV
+// moveset, so a unit that can't afford any of its real skills yet still
+// has a legal action — this is what keeps the SP economy from softlocking
+// a match instead of a cooldown-based fallback.
+const BASIC_ATTACK = {
+  key: "basic",
+  label: "Basic Attack",
+  cost: 0,
+  target: "enemy",
+  desc: "A reliable strike that always costs 0 SP.",
+  actions: [{ kind: "damage", base: 10 }],
+};
 
 const games = {};            // roomId -> game
 let cache = loadRoster();    // { chars, movesByChar, dialogueRows }
@@ -18,14 +33,18 @@ function tickEffects(f) {
 function statWithMods(base, mods, key) {
   return Math.max(0, base + mods.filter(m => m.stat === key).reduce((s,m)=>s+m.amount,0));
 }
-function effStats(f) { return { atk: statWithMods(f.atk,f.mods,"atk"), def: statWithMods(f.def,f.mods,"def"), spd: statWithMods(f.spd,f.mods,"spd") }; }
+// Characters no longer carry base ATK/DEF — those only exist as temporary
+// mods granted by skills (e.g. "+2 ATK (2 turns)"), starting from 0. SPD
+// still has a base value and is used purely to seed each round's turn order.
+function effStats(f) {
+  return {
+    atk: statWithMods(0, f.mods, "atk"),
+    def: statWithMods(0, f.mods, "def"),
+    spd: statWithMods(f.spd, f.mods, "spd"),
+  };
+}
 
 // --- damage/resolve helpers ---
-function baseHit(attacker, defender) {
-  const a = effStats(attacker).atk;
-  const d = effStats(defender).def;
-  return Math.max(5, a - d);
-}
 function hitWithIgnore(attacker, defender, addBase, ignoreFrac=0) {
   const a = effStats(attacker).atk;
   const d = Math.max(0, Math.floor(effStats(defender).def * (1 - (ignoreFrac||0))));
@@ -51,17 +70,29 @@ function applyDamage(attacker, defender, raw) {
 const EFFECT_LABEL = { stun: "Stun", bind: "Bind", burn: "Burn", shield: "a Shield", reflect: "Reflect" };
 const STAT_LABEL = { atk: "ATK", def: "DEF", spd: "SPD" };
 
-// --- initiative ---
+// --- turn order ---
 function everyone(game) { return ["A","B"].flatMap(r => game.teams[r].map((u,i)=>({role:r,i,u}))); }
-function nextActor(game) {
-  while (true) {
-    const ready = everyone(game).filter(x => x.u.hp > 0 && x.u.ap >= READY_AP);
-    if (ready.length) {
-      ready.sort((a,b)=> (b.u.ap - a.u.ap) || (effStats(b.u).spd - effStats(a.u).spd) || (a.i - b.i));
-      return ready[0];
-    }
-    everyone(game).forEach(x => { if (x.u.hp > 0) x.u.ap += effStats(x.u).spd; });
-  }
+
+// Every living unit on both sides acts exactly once per round, ordered by
+// current effective speed (ties broken by team A-before-B, then roster
+// index). Speed only ever decides ordering now — it no longer gates
+// whether a unit gets to act at all.
+function computeRoundOrder(game) {
+  return everyone(game)
+    .filter(x => x.u.hp > 0)
+    .sort((a, b) => {
+      const spdDiff = effStats(b.u).spd - effStats(a.u).spd;
+      if (spdDiff) return spdDiff;
+      if (a.role !== b.role) return a.role === "A" ? -1 : 1;
+      return a.i - b.i;
+    })
+    .map(({ role, i }) => ({ role, i }));
+}
+function startNewRound(game) {
+  game.round = (game.round || 0) + 1;
+  game.order = computeRoundOrder(game);
+  game.pos = 0;
+  if (game.order.length) game.log.push(`— Round ${game.round} —`);
 }
 
 // --- win/turn ---
@@ -83,35 +114,27 @@ function startTurnUpkeep(u, game) {
     game.log.push(`${u.name} suffers ${burnDmg} burn damage.`);
   }
 }
-// Cooldowns recover for the whole acting team on any of their turns — that
-// pacing is intentional. Status effects/mods are handled separately in
-// beginTurn(), once per the *affected* unit's own turn (see below), so a
-// freshly-applied 1-turn stun/shield survives until its target's next turn
-// instead of being wiped out by whichever side happens to act next.
-function endTurn(game, acted) {
-  game.teams[acted.role].forEach(p => {
-    for (const k of Object.keys(p.cooldowns)) if (p.cooldowns[k] > 0) p.cooldowns[k] -= 1;
-  });
-}
 
 // Advances game.actor to the next unit able to act, running upkeep and
-// auto-skipping anyone stunned/bound/dead along the way so the game never
-// waits on a client that has no legal move to send.
+// auto-skipping anyone stunned/bound/dead along the way (starting new
+// rounds as needed) so the game never waits on a client that has no
+// legal move to send.
 function beginTurn(game) {
   while (!game.over) {
-    const { role, i } = game.actor;
+    if (!game.order || game.pos >= game.order.length) {
+      startNewRound(game);
+      if (!game.order.length) return; // no living units — checkWin should already have ended the game
+    }
+
+    const { role, i } = game.order[game.pos];
     const unit = game.teams[role][i];
+
+    if (unit.hp <= 0) { game.pos += 1; continue; }
 
     startTurnUpkeep(unit, game);
     checkWin(game);
     if (game.over) return;
-
-    if (unit.hp <= 0) {
-      unit.ap -= READY_AP;
-      game.actor = nextActor(game);
-      game.turn = game.actor.role;
-      continue;
-    }
+    if (unit.hp <= 0) { game.pos += 1; continue; }
 
     const actionable = canAct(unit);
     if (actionable) {
@@ -125,12 +148,13 @@ function beginTurn(game) {
     // mods count down by one now, whether they act or are skipped.
     tickEffects(unit);
 
-    if (actionable) return;
+    if (actionable) {
+      game.actor = { role, i };
+      game.turn = role;
+      return;
+    }
 
-    endTurn(game, { role });
-    unit.ap -= READY_AP;
-    game.actor = nextActor(game);
-    game.turn = game.actor.role;
+    game.pos += 1;
   }
 }
 
@@ -241,7 +265,7 @@ function pickDialogue(teamA, teamB) {
 
 // --- Init from CSV ---
 export function initGame(selections, roomId, names = {}) {
-  // hydrate from characters.csv (keep stats chosen during select if present)
+  // hydrate from characters.csv
   const charMap = new Map(cache.chars.map(c => [c.name, c]));
 
   const hydrateTeam = (arr) => arr.map((pick, idx) => {
@@ -253,15 +277,12 @@ export function initGame(selections, roomId, names = {}) {
       img: base.img || "🎭",
       description: base.description || "",
       index: idx,
-      hp: clamp(pick.hp ?? base.hp, 1, MAX_HP),
-      atk: pick.atk ?? base.atk,
-      def: pick.def ?? base.def,
+      hp: MAX_HP,
       spd: pick.spd ?? base.spd,
-      cooldowns: Object.fromEntries(moves.map(m => [m.key, 0])),
+      sp: START_SP,
       effects: newEffects(),
       mods: [],
-      ap: 0,
-      skills: moves,
+      skills: [...moves, BASIC_ATTACK],
     };
   });
 
@@ -283,11 +304,12 @@ export function initGame(selections, roomId, names = {}) {
     over: false,
     turn: null,
     actor: null,
+    round: 0,
+    order: null,
+    pos: 0,
     cutscene: pickDialogue(teamA, teamB), // <— add cutscene lines here
   };
 
-  game.actor = nextActor(game);
-  game.turn = game.actor.role;
   beginTurn(game);
   games[roomId] = game;
   return game;
@@ -307,25 +329,28 @@ export function handleMove(roomId, playerRole, payload) {
   if (!canAct(me)) return game;
 
   const { move, target } = typeof payload === "string" ? { move: payload, target: null } : payload;
-  const cds = me.cooldowns || {};
   const skill = (me.skills || []).find(s => s.key === move);
-  if (!skill || (cds[skill.key] || 0) > 0) return game;
+  if (!skill) return game;
+  const cost = Number(skill.cost || 0);
+  if (me.sp < cost) return game;
 
   const targets = pickTargets(game, actor.role, skill.target, target);
   if (!targets || targets.length === 0) return game;
 
   const log = [];
   resolveActions(game, me, targets, skill.actions || [], log, skill.label);
-  cds[skill.key] = skill.cd;
+  me.sp = clamp(me.sp - cost, 0, MAX_SP);
 
   game.log.push(...log);
 
+  // Every resolved action feeds SP back to everyone still standing on
+  // either side — slower units who haven't gone yet this round bank more
+  // of it before their turn comes up, offsetting their lower speed.
+  everyone(game).forEach(({ u }) => { if (u.hp > 0) u.sp = clamp(u.sp + SP_GAIN_PER_ACTION, 0, MAX_SP); });
+
   checkWin(game);
   if (!game.over) {
-    endTurn(game, actor);
-    me.ap -= READY_AP;
-    game.actor = nextActor(game);
-    game.turn = game.actor.role;
+    game.pos += 1;
     beginTurn(game);
   }
 

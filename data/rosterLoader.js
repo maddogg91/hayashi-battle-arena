@@ -13,9 +13,6 @@ export function loadRoster() {
   const chars = loadCSV("characters.csv").map((r) => ({
     name: r.name,
     type: r.type,
-    hp: Number(r.hp),
-    atk: Number(r.atk),
-    def: Number(r.def),
     spd: Number(r.spd),
     img: r.img || "🎭",
     description: r.description || "",
@@ -29,7 +26,7 @@ export function loadRoster() {
     const entry = {
       key: m.key,
       label: m.label,
-      cd: Number(m.cd),
+      cost: Number(m.sp_cost),
       target: m.target,      // enemy | ally | self | aoe_enemy | aoe_team | aoe_all
       desc: m.description || "",
       actions,

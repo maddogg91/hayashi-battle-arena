@@ -57,6 +57,14 @@ export default function TeamGrid({
                 />
               </div>
               <div className="text-xs mt-1 text-gray-300">HP {c.hp}</div>
+
+              <div className="mt-1 h-1.5 bg-gray-700 rounded">
+                <div
+                  className="h-1.5 bg-blue-500 rounded"
+                  style={{ width: `${Math.max(0, Math.min(100, c.sp ?? 0))}%` }}
+                />
+              </div>
+              <div className="text-xs text-blue-300">SP {c.sp ?? 0}</div>
               {/* intentionally removed the type/description line for battle view */}
             </motion.button>
           );

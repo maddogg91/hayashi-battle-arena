@@ -137,10 +137,8 @@ export default function Game() {
     const myUnit = currentActor;
     if (!myUnit) return;
 
-    const cds = myUnit.cooldowns || {};
-    if ((cds[moveKey] || 0) > 0) return;
-
     const m = (myUnit.skills || []).find((s) => s.key === moveKey);
+    if (!m || (myUnit.sp ?? 0) < (m.cost || 0)) return;
     const needs = m?.target || "none";
 
     const payload = { move: moveKey };
@@ -167,10 +165,8 @@ export default function Game() {
     const myUnit = currentActor;
     if (!myUnit) return;
 
-    const cds = myUnit.cooldowns || {};
-    if ((cds[moveKey] || 0) > 0) return;
-
     const m = (myUnit.skills || []).find((s) => s.key === moveKey);
+    if (!m || (myUnit.sp ?? 0) < (m.cost || 0)) return;
     const needs = m?.target || "none";
 
     if (needs === "enemy" || needs === "ally") {
