@@ -20,12 +20,12 @@ app.use("/replay", replayRouter);
 app.use("/admin", adminRouter);
 app.use("/roster", rosterRouter);
 
-app.use(express.static(path.join(__dirname, "../..","frontend", "public")));
-app.use(express.static(path.join(__dirname, '../../frontend/dist')));
+app.use(express.static(path.join(__dirname, "public")));
+
 
 // Fallback to index.html for SPA routes
 app.get("*", (_req, res) => {
-   res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
+   res.sendFile(path.join(__dirname, 'public/app/index.html'));
 });
 
 const server = http.createServer(app);
