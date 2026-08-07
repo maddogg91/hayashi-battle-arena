@@ -160,6 +160,13 @@ function pairPlayers(io, s1, s2) {
 }
 
 function enqueueOrPair(io, socket, name) {
+  // Symmetric guard to the one in privateMatch(): if this socket is
+  // currently sitting solo in a private room it created (waiting for an
+  // opponent), joining the public queue instead would let it get paired
+  // here while that private room still lists it as seated — two rooms
+  // fighting over one socket's roomId/role. Tear the stale one down first.
+  leaveSoloPrivateWait(socket);
+
   socket.data.name = (name || "").slice(0, 40) || "Player";
   // Try to pair with someone already waiting
   while (waitQueue.length) {
@@ -179,6 +186,14 @@ function enqueueOrPair(io, socket, name) {
 
 /* -------------------- Private matchmaking -------------------- */
 function privateMatch(io, socket, passcode, name) {
+  // The Lobby screen shows the public-queue and private-match cards at the
+  // same time, so a player can click "Find Match", then — while still
+  // waiting — also start a private match. Without this, the socket stays
+  // in waitQueue; a later, unrelated public-queue join can then pair with
+  // this stale entry and overwrite this socket's roomId/role, silently
+  // corrupting whatever room it's actually in.
+  safeLeaveQueue(socket);
+
   socket.data.name = (name || "").slice(0, 40) || "Player";
   const code = (passcode || "").toUpperCase().trim();
   if (!/^[A-Z0-9]{4,12}$/.test(code)) {
@@ -258,21 +273,30 @@ function privateMatch(io, socket, passcode, name) {
   socket.emit("privateWaiting", { roomId, passcode: code });
 }
 
-function cancelPrivateMatch(io, socket) {
+// Tears down a still-solo private room this socket is waiting in (seat A
+// filled, no opponent yet). Used both for an explicit Cancel click and as a
+// guard when the same socket starts a different matchmaking flow (public
+// queue) while still parked here, so it can't end up straddling two rooms.
+// Never touches a room whose opponent has already joined.
+function leaveSoloPrivateWait(socket) {
   const roomId = socket.data?.roomId;
-  if (!roomId) return;
+  if (!roomId) return false;
   const room = rooms[roomId];
-  if (!room || !room.isPrivate) return;
-  // If the opponent already joined, the match has started — let it proceed
-  // instead of tearing it down out from under them.
-  if (room.players.A && room.players.B) return;
+  if (!room || !room.isPrivate) return false;
+  if (room.players.A && room.players.B) return false;
 
   if (room.passcode) delete passcodeRooms[room.passcode];
   delete rooms[roomId];
   socket.leave(roomId);
   socket.data.roomId = null;
   socket.data.role = null;
-  setPresence(io, socket, { status: "idle", passcode: null });
+  return true;
+}
+
+function cancelPrivateMatch(io, socket) {
+  if (leaveSoloPrivateWait(socket)) {
+    setPresence(io, socket, { status: "idle", passcode: null });
+  }
 }
 
 /* -------------------- Public API: init Socket.IO -------------------- */
