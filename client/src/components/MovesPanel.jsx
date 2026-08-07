@@ -57,6 +57,7 @@ function MoveButton({ skill, isPending, isDisabled, onUse, onPreview, onClearPre
 
 export default function MovesPanel({
   myUnit = {},
+  myTeam = [],
   canAct,
   onUse,
   pendingMove = null,
@@ -71,6 +72,8 @@ export default function MovesPanel({
   const [previewKey, setPreviewKey] = useState(null);
   const sp = myUnit.sp ?? 0;
   const effects = myUnit.effects || {};
+  const stacks = myUnit.stacks || {};
+  const modes = myUnit.modes || {};
   const skills = myUnit.skills || [];
 
   const cannotAct = !canAct || effects.stun > 0 || effects.bind > 0;
@@ -87,12 +90,39 @@ export default function MovesPanel({
   };
 
   const canAfford = (skill) => sp >= (skill.cost || 0);
+  // Some moves are gated behind stacks, an active mode, or having a living
+  // ally (Arisa's Unleash the Beast, Maako's Flames of Reckoning, Shou's
+  // Self Preservation) — mirrors requirementsMet() in game/engine.js so the
+  // button visibly greys out instead of silently no-op'ing on click.
+  const meetsRequires = (skill) => {
+    const req = skill.requires;
+    if (!req) return true;
+    if (req.stacks && (stacks[req.stacks.name] || 0) < req.stacks.min) return false;
+    if (req.mode && !(modes[req.mode]?.turns > 0)) return false;
+    if (req.alliesAlive) {
+      const others = myTeam.filter((u) => u !== myUnit && u.hp > 0);
+      if (others.length === 0) return false;
+    }
+    return true;
+  };
   const disabled = (skill) => {
     if (cannotAct) return true;
-    return !canAfford(skill);
+    if (!canAfford(skill)) return true;
+    return !meetsRequires(skill);
   };
 
   const activeSkill = skills.find((s) => s.key === (pendingMove?.key || previewKey));
+  // Several skills read entirely differently while a mode is active (Jett's
+  // Kimura Special, Shou's Arahabaki, Maako's Intangible Flames/Fire Wall) —
+  // show the description that actually matches what pressing it will do.
+  const activeSkillDesc = (() => {
+    if (!activeSkill) return "";
+    const useAlt = activeSkill.altIf && modes[activeSkill.altIf]?.turns > 0;
+    const useExtra = activeSkill.extraIf && modes[activeSkill.extraIf]?.turns > 0;
+    let d = useAlt && activeSkill.altDesc ? activeSkill.altDesc : (activeSkill.desc || "No description available.");
+    if (useExtra && activeSkill.extraDesc) d += ` ${activeSkill.extraDesc}`;
+    return d;
+  })();
 
   const handlePreview = (key) => setPreviewKey(key);
   const handleClearPreview = (key) => {
@@ -110,6 +140,13 @@ export default function MovesPanel({
         {effects.burn > 0 && <span className="px-2 py-1 bg-orange-700 rounded">Burn {effects.burn}</span>}
         {effects.shield > 0 && <span className="px-2 py-1 bg-blue-700 rounded">Shield {effects.shield}</span>}
         {effects.reflect > 0 && <span className="px-2 py-1 bg-indigo-700 rounded">Reflect {effects.reflect}</span>}
+        {effects.invuln > 0 && <span className="px-2 py-1 bg-cyan-700 rounded">Invulnerable {effects.invuln}</span>}
+        {Object.entries(stacks).filter(([, v]) => v > 0).map(([name, v]) => (
+          <span key={name} className="px-2 py-1 bg-purple-800 rounded capitalize">{name} x{v}</span>
+        ))}
+        {Object.entries(modes).filter(([, m]) => m?.turns > 0).map(([name, m]) => (
+          <span key={name} className="px-2 py-1 bg-teal-700 rounded capitalize">{name} ({m.turns})</span>
+        ))}
       </div>
 
       <div className="flex items-center justify-center gap-3 flex-wrap">
@@ -166,7 +203,7 @@ export default function MovesPanel({
                 </div>
               )}
             </div>
-            <div className="mt-1">{activeSkill.desc || "No description available."}</div>
+            <div className="mt-1">{activeSkillDesc}</div>
             {pendingMove && (
               <div className="mt-1 text-xs text-yellow-300">
                 {canConfirm

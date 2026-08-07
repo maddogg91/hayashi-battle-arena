@@ -9,6 +9,21 @@ import ReplayViewer from "../components/ReplayViewer";
 import PreBattleCutscene from "../components/PreBattleCutscene";
 import ChatPanel from "../components/ChatPanel";
 
+// Mirrors requirementsMet() in game/engine.js — mostly a belt-and-suspenders
+// guard since MovesPanel already greys out buttons that fail this, but
+// chooseMove is reachable independently of that render (e.g. a stale click).
+function meetsRequires(skill, unit, team) {
+  const req = skill.requires;
+  if (!req) return true;
+  if (req.stacks && (unit.stacks?.[req.stacks.name] || 0) < req.stacks.min) return false;
+  if (req.mode && !(unit.modes?.[req.mode]?.turns > 0)) return false;
+  if (req.alliesAlive) {
+    const others = (team || []).filter((u) => u !== unit && u.hp > 0);
+    if (others.length === 0) return false;
+  }
+  return true;
+}
+
 export default function Game() {
   // Flow
   const [inLobby, setInLobby] = useState(true);
@@ -194,6 +209,7 @@ export default function Game() {
 
     const m = (myUnit.skills || []).find((s) => s.key === moveKey);
     if (!m || (myUnit.sp ?? 0) < (m.cost || 0)) return;
+    if (!meetsRequires(m, myUnit, game.teams?.[role] ?? [])) return;
     const needs = m?.target || "none";
     const desiredRole =
       needs === "ally" ? role : needs === "enemy" ? (role === "A" ? "B" : "A") : null;
@@ -411,6 +427,7 @@ export default function Game() {
 
           <MovesPanel
             myUnit={game?.teams?.[game.actor.role]?.[game.actor.i] || {}}
+            myTeam={game?.teams?.[game.actor.role] || []}
             canAct={iAmActing && !game.over}
             onUse={chooseMove}
             pendingMove={iAmActing ? pendingMove : null}
