@@ -7,6 +7,7 @@ import healthApi from "./routes/api/health.js";
 import replayApi from "./routes/api/replay.js";
 import adminApi from "./routes/api/admin.js";
 import rosterApi from "./routes/api/roster.js";
+import feedbackApi from "./routes/api/feedback.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +18,7 @@ app.use("/api/health", healthApi);
 app.use("/api/replay", replayApi);
 app.use("/api/admin", adminApi);
 app.use("/api/roster", rosterApi);
+app.use("/api/feedback", feedbackApi);
 
 // SPA catch-all: any path not matched by an API route falls through to the
 // React app's client-side router.

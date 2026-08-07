@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { socket } from "../api/socket";
 import LobbyUsersPanel from "../components/LobbyUsersPanel";
+import ReportBugModal from "../components/ReportBugModal";
 
 export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpenGuide }) {
   const [name, setName] = useState("");
@@ -10,6 +11,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
   const [privStatus, setPrivStatus] = useState("");
   const [loadingPrivate, setLoadingPrivate] = useState(false);
   const [waitingCode, setWaitingCode] = useState("");
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Load saved name + announce presence if we already have one
   useEffect(() => {
@@ -128,6 +130,15 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
         <p className="mt-6 text-sm text-gray-400">
           Your name is stored locally for next time.
         </p>
+        <button
+          onClick={() => setShowReportModal(true)}
+          className="mt-4 text-xs px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+        >
+          🐛 Report a Bug
+        </button>
+        {showReportModal && (
+          <ReportBugModal name={name || "Anonymous"} onClose={() => setShowReportModal(false)} />
+        )}
       </div>
     );
   }
@@ -137,19 +148,33 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
       <div className="md:col-span-2 space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-yellow-400">Welcome, {name}!</h1>
-          {onOpenGuide && (
+          <div className="flex gap-2">
+            {onOpenGuide && (
+              <button
+                onClick={onOpenGuide}
+                className="text-sm px-4 py-2 rounded-lg bg-purple-700 hover:bg-purple-600 font-semibold"
+              >
+                📖 Character Guide
+              </button>
+            )}
             <button
-              onClick={onOpenGuide}
-              className="text-sm px-4 py-2 rounded-lg bg-purple-700 hover:bg-purple-600 font-semibold"
+              onClick={() => setShowReportModal(true)}
+              className="text-sm px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 font-semibold"
             >
-              📖 Character Guide
+              🐛 Report a Bug
             </button>
-          )}
+          </div>
         </div>
+        {showReportModal && (
+          <ReportBugModal name={name} onClose={() => setShowReportModal(false)} />
+        )}
 
         <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
           <h2 className="text-lg font-semibold text-yellow-400 mb-3">What's New</h2>
           <ul className="text-sm text-gray-300 space-y-1.5 list-disc list-inside">
+            <li>New Report a Bug button (🐛 above) — send us a bug report, feedback, or suggestion straight from the app.</li>
+            <li>Fixed active matches occasionally breaking when a 3rd or more player joined the lobby or tried to queue.</li>
+            <li>Fixed move selection misbehaving on desktop — each move now has its own ⓘ info icon so previewing a description never gets mixed up with the move you've actually selected.</li>
             <li>Fixed attacks appearing "stuck" after a brief connection drop — battles now recover cleanly instead of losing the ability to act.</li>
             <li>You can now cancel a pending private match, and Return to Lobby from character select, the waiting screen, or the cutscene.</li>
             <li>New Character Guide (📖 above) — browse every fighter's profile and full skill list before you draft.</li>
