@@ -1,5 +1,5 @@
 import express from "express";
-import { saveFeedbackToDisk, listFeedback } from "../../feedback.js";
+import { saveFeedbackToDisk, listFeedback, notifyDiscord } from "../../feedback.js";
 const router = express.Router();
 
 const CATEGORIES = new Set(["bug", "feedback", "suggestion"]);
@@ -15,6 +15,9 @@ router.post("/", (req, res) => {
     category: CATEGORIES.has(category) ? category : "bug",
     context: (typeof context === "string" ? context : "").trim().slice(0, 200),
   });
+  // Fire-and-forget: the report is already saved, so a slow/unreachable
+  // Discord webhook should never delay the player's confirmation.
+  notifyDiscord(record);
   res.json({ ok: true, id: record.id });
 });
 
