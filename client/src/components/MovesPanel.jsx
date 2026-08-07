@@ -1,5 +1,60 @@
 import { useState } from "react";
 
+// Hoisted out of MovesPanel: if these were defined inside the component
+// body, React would see a brand-new component type on every render (any SP
+// update from ANY player re-renders this panel) and tear down + rebuild
+// every button's DOM node each time. With the mouse sitting over one of
+// them, the browser can refire mouseenter on the fresh node, triggering
+// another state update and another rebuild — an infinite loop for as long
+// as the cursor stays put. That's a real, desktop-specific bug: touch has
+// no persistent hover, so it can't retrigger the same way.
+function InfoIcon({ skill, onPreview, onClearPreview }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        // A real click always fires mouseenter first, which already sets
+        // the preview — so this only needs to handle the tap-with-no-hover
+        // case (mobile). Toggling here would immediately undo what
+        // mouseenter just did on desktop.
+        e.stopPropagation();
+        onPreview(skill.key);
+      }}
+      onMouseEnter={() => onPreview(skill.key)}
+      onMouseLeave={() => onClearPreview(skill.key)}
+      onFocus={() => onPreview(skill.key)}
+      onBlur={() => onClearPreview(skill.key)}
+      aria-label={`About ${skill.label}`}
+      title={skill.desc}
+      className="w-5 h-5 shrink-0 rounded-full bg-gray-600 hover:bg-gray-500 text-[10px] font-bold text-gray-100 flex items-center justify-center"
+    >
+      i
+    </button>
+  );
+}
+
+function MoveButton({ skill, isPending, isDisabled, onUse, onPreview, onClearPreview }) {
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => onUse(skill.key)}
+        disabled={isDisabled}
+        className={`px-3 py-2 rounded-lg text-sm font-semibold transition
+          ${isDisabled
+            ? "bg-gray-600 cursor-not-allowed"
+            : isPending
+            ? "bg-yellow-500 hover:bg-yellow-600 ring-2 ring-yellow-300 animate-pulse"
+            : "bg-purple-600 hover:bg-purple-700"}
+        `}
+      >
+        {skill.label}
+        <span className="ml-1 text-xs opacity-80">({skill.cost || 0} SP)</span>
+      </button>
+      <InfoIcon skill={skill} onPreview={onPreview} onClearPreview={onClearPreview} />
+    </div>
+  );
+}
+
 export default function MovesPanel({
   myUnit = {},
   canAct,
@@ -9,7 +64,11 @@ export default function MovesPanel({
   canConfirm = false,
   onConfirm,
 }) {
-  const [hoverKey, setHoverKey] = useState(null);
+  // Only drives the *preview* shown when nothing is selected yet — once a
+  // move is pending, the panel locks to it (see activeSkill) so hovering
+  // near other buttons on your way to a target/Confirm can't silently swap
+  // the description out from under you.
+  const [previewKey, setPreviewKey] = useState(null);
   const sp = myUnit.sp ?? 0;
   const effects = myUnit.effects || {};
   const skills = myUnit.skills || [];
@@ -33,31 +92,11 @@ export default function MovesPanel({
     return !canAfford(skill);
   };
 
-  const activeSkill = skills.find((s) => s.key === (hoverKey || pendingMove?.key));
+  const activeSkill = skills.find((s) => s.key === (pendingMove?.key || previewKey));
 
-  const Btn = ({ skill }) => {
-    const isPending = pendingMove?.key === skill.key;
-    return (
-      <button
-        key={skill.key}
-        onClick={() => onUse(skill.key)}
-        onMouseEnter={() => setHoverKey(skill.key)}
-        onMouseLeave={() => setHoverKey((k) => (k === skill.key ? null : k))}
-        onFocus={() => setHoverKey(skill.key)}
-        onBlur={() => setHoverKey((k) => (k === skill.key ? null : k))}
-        disabled={disabled(skill)}
-        className={`px-3 py-2 rounded-lg text-sm font-semibold transition
-          ${disabled(skill)
-            ? "bg-gray-600 cursor-not-allowed"
-            : isPending
-            ? "bg-yellow-500 hover:bg-yellow-600 ring-2 ring-yellow-300 animate-pulse"
-            : "bg-purple-600 hover:bg-purple-700"}
-        `}
-      >
-        {skill.label}
-        <span className="ml-1 text-xs opacity-80">({skill.cost || 0} SP)</span>
-      </button>
-    );
+  const handlePreview = (key) => setPreviewKey(key);
+  const handleClearPreview = (key) => {
+    setPreviewKey((k) => (k === key ? null : k));
   };
 
   return (
@@ -73,14 +112,24 @@ export default function MovesPanel({
         {effects.reflect > 0 && <span className="px-2 py-1 bg-indigo-700 rounded">Reflect {effects.reflect}</span>}
       </div>
 
-      <div className="flex items-center justify-center gap-2 flex-wrap">
-        {skills.map((s) => <Btn key={s.key} skill={s} />)}
+      <div className="flex items-center justify-center gap-3 flex-wrap">
+        {skills.map((s) => (
+          <MoveButton
+            key={s.key}
+            skill={s}
+            isPending={pendingMove?.key === s.key}
+            isDisabled={disabled(s)}
+            onUse={onUse}
+            onPreview={handlePreview}
+            onClearPreview={handleClearPreview}
+          />
+        ))}
       </div>
 
-      {/* Always-visible move description — shown on hover *and* whenever a
-          move is selected, so it never depends on hovering (which touch
-          devices can't do anyway) and stays visible while a selected move
-          waits on Confirm/Cancel. */}
+      {/* Always-visible move description. Tap/hover the ⓘ next to a move to
+          preview it before selecting; once a move is actually selected the
+          panel locks to it (ignoring the info icons) so it always matches
+          what Confirm will do. */}
       <div className="w-full max-w-xl bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-sm text-gray-200 min-h-[3.75rem]">
         {activeSkill ? (
           <>
@@ -127,7 +176,7 @@ export default function MovesPanel({
             )}
           </>
         ) : (
-          <span className="text-gray-400">Hover or tap a move to see what it does.</span>
+          <span className="text-gray-400">Tap the ⓘ next to a move to see what it does.</span>
         )}
       </div>
     </div>
