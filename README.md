@@ -15,6 +15,35 @@ npm start        # serves the app + Socket.IO on $PORT (default 8080)
 
 ## Changelog
 
+### 2026-08-07 — New signature movesets for Arisa, Erika, Jett, Shou, and Maako
+
+- **Rest replaces Basic Attack** — every character's free fallback move now
+  recovers an extra 10 SP (on top of the usual +5 everyone gets whenever any
+  action resolves) instead of dealing 10 damage, so choosing not to attack is
+  a real tradeoff instead of a wasted turn.
+- **Five reworked kits** — Arisa Huang, Erika Sharp, Jett Kimura, Shou, and
+  Maako Karsean each got a full new 4-skill moveset built around a signature
+  mechanic:
+  - **Arisa** stacks Creature Summon (up to 3) to power up Hammer Attack,
+    then cashes stacks in with Unleash the Beast for AOE damage; Pep Talk
+    refuels the whole team's SP.
+  - **Erika** gets a real single-target Heal and Page Turner, a party-wide
+    cleanse; Angelic Radiance nukes and heals the battlefield at once.
+  - **Jett's Kimura Special** temporarily transforms Warning Shot and
+    Piercing Volley into a piercing poke and AOE nuke; Reload and Cover is a
+    free defensive reset.
+  - **Shou's Arahabaki** trades ongoing self-damage for a massively upgraded
+    Heavy Slash and Conjure the Elements; Self Preservation trades allies'
+    HP for his own.
+  - **Maako's Intangible Flames** makes him untargetable and changes how
+    Fiery Punch and Fire Wall behave, building toward the AOE payoff of
+    Flames of Reckoning.
+  - Under the hood this added several new engine mechanics: stacking
+    counters, temporary "modes" that swap a skill's behavior or add bonus
+    effects, chance-based status procs, true invulnerability, and
+    untargetability — all verified with a 40+ assertion test script
+    covering every new interaction before shipping.
+
 ### 2026-08-06 — Bug reporting, matchmaking fix, move-selection fix
 
 - **Report a Bug button** — a 🐛 button on the lobby landing page opens a

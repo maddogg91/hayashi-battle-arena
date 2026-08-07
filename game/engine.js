@@ -8,14 +8,16 @@ const SP_GAIN_PER_ACTION = 5;
 // Every character always has this available regardless of SP or the CSV
 // moveset, so a unit that can't afford any of its real skills yet still
 // has a legal action — this is what keeps the SP economy from softlocking
-// a match instead of a cooldown-based fallback.
-const BASIC_ATTACK = {
-  key: "basic",
-  label: "Basic Attack",
+// a match instead of a cooldown-based fallback. Resting instead of
+// attacking grants a bonus 10 SP on top of the usual +5 everyone gets
+// whenever any action resolves.
+const REST = {
+  key: "rest",
+  label: "Rest",
   cost: 0,
-  target: "enemy",
-  desc: "A reliable strike that always costs 0 SP.",
-  actions: [{ kind: "damage", base: 10 }],
+  target: "self",
+  desc: "Do nothing this turn to recover an extra 10 SP (on top of the usual +5 everyone gains).",
+  actions: [{ kind: "spgain", amount: 10, target: "self" }],
 };
 
 const games = {};            // roomId -> game
@@ -24,11 +26,27 @@ let cache = loadRoster();    // { chars, movesByChar, dialogueRows }
 // --- utilities ---
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 
-function newEffects() { return { stun:0, bind:0, burn:0, shield:0, reflect:0 }; }
+function newEffects() { return { stun:0, bind:0, burn:0, shield:0, reflect:0, invuln:0 }; }
 function addEffect(f, k, turns) { f.effects[k] = Math.max(f.effects[k], turns); }
 function tickEffects(f) {
   for (const k of Object.keys(f.effects)) if (f.effects[k] > 0) f.effects[k] -= 1;
   f.mods = f.mods.filter(m => (--m.turns) > 0);
+  // Temporary "modes" (e.g. Kimura Special, Arahabaki, Intangible Flames)
+  // count down the same way and drop off once expired.
+  if (f.modes) {
+    for (const name of Object.keys(f.modes)) {
+      const m = f.modes[name];
+      if (!m) continue;
+      m.turns -= 1;
+      if (m.turns <= 0) delete f.modes[name];
+    }
+  }
+}
+// A unit with an active mode flagged `untargetable` (e.g. Maako's
+// Intangible Flames) can't be selected as an enemy target.
+function hasUntargetableMode(u) {
+  const modes = u.modes || {};
+  return Object.values(modes).some(m => m && m.turns > 0 && m.untargetable);
 }
 function statWithMods(base, mods, key) {
   return Math.max(0, base + mods.filter(m => m.stat === key).reduce((s,m)=>s+m.amount,0));
@@ -53,6 +71,10 @@ function hitWithIgnore(attacker, defender, addBase, ignoreFrac=0) {
 function applyDamage(attacker, defender, raw) {
   let dmg = raw;
   const notes = [];
+  if (defender.effects.invuln > 0) {
+    notes.push(`${defender.name} is invulnerable and takes no damage.`);
+    return { dmg: 0, notes };
+  }
   if (defender.effects.shield > 0) {
     const reduced = Math.max(1, Math.floor(dmg * 0.5));
     notes.push(`${defender.name} is shielded (−${dmg - reduced}).`);
@@ -67,7 +89,7 @@ function applyDamage(attacker, defender, raw) {
   return { dmg, notes };
 }
 
-const EFFECT_LABEL = { stun: "Stun", bind: "Bind", burn: "Burn", shield: "a Shield", reflect: "Reflect" };
+const EFFECT_LABEL = { stun: "Stun", bind: "Bind", burn: "Burn", shield: "a Shield", reflect: "Reflect", invuln: "Invulnerability" };
 const STAT_LABEL = { atk: "ATK", def: "DEF", spd: "SPD" };
 
 // --- turn order ---
@@ -112,6 +134,17 @@ function startTurnUpkeep(u, game) {
     const burnDmg = 6;
     u.hp = clamp(u.hp - burnDmg, 0, MAX_HP);
     game.log.push(`${u.name} suffers ${burnDmg} burn damage.`);
+  }
+  // Modes like Shou's Arahabaki carry a self-damage-per-turn cost for as
+  // long as they're active.
+  if (u.modes) {
+    for (const [name, m] of Object.entries(u.modes)) {
+      if (m && m.turns > 0 && m.selfDamage > 0) {
+        u.hp = clamp(u.hp - m.selfDamage, 0, MAX_HP);
+        const label = name.charAt(0).toUpperCase() + name.slice(1);
+        game.log.push(`${u.name} takes ${m.selfDamage} damage from ${label}.`);
+      }
+    }
   }
 }
 
@@ -161,15 +194,42 @@ function beginTurn(game) {
 // --- target resolution ---
 function pickTargets(game, actorRole, spec, target) {
   const my = game.teams[actorRole];
-  const foe = game.teams[actorRole === "A" ? "B" : "A"];
+  const allFoe = game.teams[actorRole === "A" ? "B" : "A"];
+  const legalFoe = allFoe.filter(x => x.hp > 0 && !hasUntargetableMode(x));
   switch (spec) {
     case "self":      return [ my[game.actor.i] ];
     case "ally":      return [ target ? my[target.index] : my[game.actor.i] ];
-    case "enemy":     return [ target ? (target.role === actorRole ? my[target.index] : foe[target.index]) : foe.find(x=>x.hp>0) ].filter(Boolean);
-    case "aoe_enemy": return foe.filter(x=>x.hp>0);
+    case "enemy": {
+      if (target) {
+        const pool = target.role === actorRole ? my : allFoe;
+        const t = pool[target.index];
+        if (!t || t.hp <= 0) return [];
+        if (pool === allFoe && hasUntargetableMode(t)) return [];
+        return [t];
+      }
+      return legalFoe.length ? [legalFoe[0]] : [];
+    }
+    case "aoe_enemy": return legalFoe;
     case "aoe_team":  return my.filter(x=>x.hp>0);
-    case "aoe_all":   return [...my.filter(x=>x.hp>0), ...foe.filter(x=>x.hp>0)];
+    case "aoe_all":   return [...my.filter(x=>x.hp>0), ...legalFoe];
     default:          return [];
+  }
+}
+
+// Resolves a step-level `target` override (e.g. a damage step on an
+// aoe_enemy skill that also splashes the caster's own team) independently
+// of the skill's main declared target/targets. Returns null when `scope`
+// isn't one of these keywords, so callers fall back to the main targets.
+function resolveScopeTargets(game, actor, scope) {
+  const role = game.actor.role;
+  const my = game.teams[role];
+  const foe = game.teams[role === "A" ? "B" : "A"];
+  switch (scope) {
+    case "self":            return [actor];
+    case "aoe_team":        return my.filter(x => x.hp > 0);
+    case "aoe_team_others": return my.filter(x => x.hp > 0 && x !== actor);
+    case "aoe_enemy":       return foe.filter(x => x.hp > 0 && !hasUntargetableMode(x));
+    default:                return null;
   }
 }
 
@@ -181,12 +241,22 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
   for (const step of actions) {
     const kind = step.kind;
     if (kind === "damage") {
-      const base = Number(step.base || 0);
+      let base = Number(step.base || 0);
+      if (step.stackBonus) {
+        const { name, per } = step.stackBonus;
+        const count = (actor.stacks && actor.stacks[name]) || 0;
+        base += Number(per || 0) * count;
+      }
       const ignore = Number(step.ignore || 0);
-      each(t => {
+      const stepTargets = (step.target && resolveScopeTargets(game, actor, step.target)) || arr;
+      stepTargets.forEach(t => {
         const { dmg, notes } = applyDamage(actor, t, hitWithIgnore(actor, t, base, ignore));
         log.push(`${actor.name} attacks ${t.name} with ${skillLabel}, dealing ${dmg} damage.`, ...notes);
       });
+      if (step.consumeStack) {
+        actor.stacks = actor.stacks || {};
+        actor.stacks[step.consumeStack] = 0;
+      }
     } else if (kind === "heal") {
       const amt = Number(step.amount || 0);
       const scope = step.target || "self";
@@ -204,22 +274,79 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
         log.push(`${actor.name}'s team heals for ${amt} HP with ${skillLabel}.`);
       }
     } else if (kind === "effect") {
-      const type = step.type; // stun|bind|burn|shield|reflect
+      const type = step.type; // stun|bind|burn|shield|reflect|invuln
       const turns = Number(step.turns || 1);
       const scope = step.target; // optional override like heal
+      // Optional proc chance (0-1); status effects without one always land,
+      // matching every effect step that shipped before this field existed.
+      const chance = step.chance != null ? Number(step.chance) : 1;
       const label = EFFECT_LABEL[type] || type;
       if (!scope) {
         each(t => {
+          if (Math.random() >= chance) return;
           addEffect(t, type, turns);
           log.push(`${t.name} is afflicted with ${label} (${turns}) by ${skillLabel}.`);
         });
       } else if (scope === "self") {
-        addEffect(actor, type, turns);
-        log.push(`${actor.name} gains ${label} (${turns}) from ${skillLabel}.`);
+        if (Math.random() < chance) {
+          addEffect(actor, type, turns);
+          log.push(`${actor.name} gains ${label} (${turns}) from ${skillLabel}.`);
+        }
       } else if (scope === "aoe_team") {
-        game.teams[game.actor.role].forEach(t => addEffect(t, type, turns));
-        log.push(`${actor.name}'s team gains ${label} (${turns}) from ${skillLabel}.`);
+        game.teams[game.actor.role].forEach(t => {
+          if (Math.random() >= chance) return;
+          addEffect(t, type, turns);
+          log.push(`${t.name} gains ${label} (${turns}) from ${skillLabel}.`);
+        });
       }
+    } else if (kind === "cleanse") {
+      // Removes negative status effects (not buffs like shield/reflect).
+      const NEGATIVE = ["stun", "bind", "burn"];
+      const stepTargets = (step.target && resolveScopeTargets(game, actor, step.target)) || arr;
+      stepTargets.forEach(t => {
+        const hadAny = NEGATIVE.some(k => t.effects[k] > 0);
+        NEGATIVE.forEach(k => { t.effects[k] = 0; });
+        if (hadAny) log.push(`${t.name}'s negative status effects are cleansed by ${skillLabel}.`);
+      });
+    } else if (kind === "spgain") {
+      const amt = Number(step.amount || 0);
+      const stepTargets = (step.target && resolveScopeTargets(game, actor, step.target)) || arr;
+      stepTargets.forEach(t => {
+        if (t.hp <= 0) return;
+        t.sp = clamp(t.sp + amt, 0, MAX_SP);
+        log.push(`${t.name} gains ${amt} SP from ${skillLabel}.`);
+      });
+    } else if (kind === "mode") {
+      // Sets a temporary named state on the actor (e.g. Kimura Special,
+      // Arahabaki, Intangible Flames) that other skills can key off of via
+      // `altIf`/`extraIf`/`requires.mode`, and pickTargets/upkeep can read
+      // directly (untargetable, selfDamage).
+      const name = step.name;
+      const turns = Number(step.turns || 1);
+      actor.modes = actor.modes || {};
+      actor.modes[name] = {
+        turns,
+        selfDamage: Number(step.selfDamage || 0),
+        untargetable: !!step.untargetable,
+      };
+      log.push(`${actor.name} activates ${skillLabel}.`);
+    } else if (kind === "modeClear") {
+      const name = step.name;
+      if (actor.modes && actor.modes[name]) {
+        delete actor.modes[name];
+        const label = name.charAt(0).toUpperCase() + name.slice(1);
+        log.push(`${actor.name}'s ${label} mode ends.`);
+      }
+    } else if (kind === "stack") {
+      // Named, capped counters on the actor (e.g. Arisa's Creature Summon)
+      // that later damage steps can scale off of via `stackBonus`.
+      const name = step.name;
+      const amount = Number(step.amount || 1);
+      const max = step.max != null ? Number(step.max) : Infinity;
+      actor.stacks = actor.stacks || {};
+      const next = clamp((actor.stacks[name] || 0) + amount, 0, max);
+      actor.stacks[name] = next;
+      log.push(`${actor.name} gains a ${skillLabel} stack (${next}${max !== Infinity ? "/" + max : ""}).`);
     } else if (kind === "mod") {
       const { stat, amount, turns } = step;
       const amt = Number(amount || 0);
@@ -282,7 +409,9 @@ export function initGame(selections, roomId, names = {}) {
       sp: START_SP,
       effects: newEffects(),
       mods: [],
-      skills: [...moves, BASIC_ATTACK],
+      stacks: {},
+      modes: {},
+      skills: [...moves, REST],
     };
   });
 
@@ -315,6 +444,27 @@ export function initGame(selections, roomId, names = {}) {
   return game;
 }
 
+// A skill can gate itself behind a stack count, an active mode, or having
+// at least one other living ally (e.g. Arisa's Unleash the Beast, Maako's
+// Flames of Reckoning, Shou's Self Preservation). Absent for every skill
+// that predates this, so they're always usable as before.
+function requirementsMet(unit, game, requires) {
+  if (!requires) return true;
+  if (requires.stacks) {
+    const { name, min } = requires.stacks;
+    if ((unit.stacks?.[name] || 0) < min) return false;
+  }
+  if (requires.mode) {
+    if (!(unit.modes?.[requires.mode]?.turns > 0)) return false;
+  }
+  if (requires.alliesAlive) {
+    const myTeam = game.teams[game.actor.role];
+    const others = myTeam.filter(x => x !== unit && x.hp > 0);
+    if (others.length === 0) return false;
+  }
+  return true;
+}
+
 // --- Turn handler (skills only) ---
 export function handleMove(roomId, playerRole, payload) {
   const game = games[roomId];
@@ -331,14 +481,27 @@ export function handleMove(roomId, playerRole, payload) {
   const { move, target } = typeof payload === "string" ? { move: payload, target: null } : payload;
   const skill = (me.skills || []).find(s => s.key === move);
   if (!skill) return game;
+  if (!requirementsMet(me, game, skill.requires)) return game;
+
   const cost = Number(skill.cost || 0);
   if (me.sp < cost) return game;
 
-  const targets = pickTargets(game, actor.role, skill.target, target);
+  // Some skills change entirely while a mode is active (Jett's Kimura
+  // Special, Shou's Arahabaki, Maako's Intangible Flames) — a different
+  // target spec/action list (altTarget/altActions), or extra bonus actions
+  // layered on top of the normal ones (Maako's Fire Wall).
+  const useAlt = !!(skill.altIf && me.modes?.[skill.altIf]?.turns > 0);
+  const useExtra = !!(skill.extraIf && me.modes?.[skill.extraIf]?.turns > 0);
+  const targetSpec = (useAlt && skill.altTarget) || skill.target;
+
+  const targets = pickTargets(game, actor.role, targetSpec, target);
   if (!targets || targets.length === 0) return game;
 
+  let actions = useAlt ? (skill.altActions || skill.actions || []) : (skill.actions || []);
+  if (useExtra && skill.extraActions) actions = [...actions, ...skill.extraActions];
+
   const log = [];
-  resolveActions(game, me, targets, skill.actions || [], log, skill.label);
+  resolveActions(game, me, targets, actions, log, skill.label);
   me.sp = clamp(me.sp - cost, 0, MAX_SP);
 
   game.log.push(...log);

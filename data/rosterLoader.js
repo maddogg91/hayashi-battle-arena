@@ -31,6 +31,10 @@ export function loadRoster() {
       desc: m.description || "",
       actions,
     };
+    // Optional JSON blob carrying the newer conditional-skill fields
+    // (requires, altIf/altTarget/altActions/altDesc, extraIf/extraActions/extraDesc)
+    // so most rows can leave the column blank.
+    if (m.extra) Object.assign(entry, JSON.parse(m.extra));
     if (!movesByChar[m.character]) movesByChar[m.character] = [];
     movesByChar[m.character].push(entry);
   }
