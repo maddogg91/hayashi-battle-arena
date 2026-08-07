@@ -13,7 +13,37 @@ npm run build   # builds the client into public/app
 npm start        # serves the app + Socket.IO on $PORT (default 8080)
 ```
 
+### Optional: Discord notifications for player feedback
+
+Set the `DISCORD_WEBHOOK_URL` environment variable to have every "Report a
+Bug" submission also post to a Discord channel, in addition to being saved
+to disk. To get a webhook URL: in Discord, go to the target channel's
+Settings -> Integrations -> Webhooks -> New Webhook, then copy its URL.
+
+```bash
+# locally (.env, not committed)
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+
+# Heroku
+heroku config:set DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+```
+
+Treat this URL like a secret — anyone who has it can post to your channel.
+If it's unset, feedback is still saved to disk as before; Discord posting
+is simply skipped.
+
 ## Changelog
+
+### 2026-08-07 — Discord notifications for player feedback
+
+- **Report a Bug submissions now optionally post to Discord** — set the
+  `DISCORD_WEBHOOK_URL` environment variable (see "Running locally" above)
+  and every bug report, feedback, or suggestion submitted through the
+  lobby's 🐛 button also gets posted as an embed to that channel, in
+  addition to being saved to disk as before. Fully optional and
+  non-blocking: if the variable is unset or Discord is unreachable, the
+  submission still saves normally and the player still sees their
+  confirmation.
 
 ### 2026-08-07 — New signature movesets for Arisa, Erika, Jett, Shou, and Maako
 
