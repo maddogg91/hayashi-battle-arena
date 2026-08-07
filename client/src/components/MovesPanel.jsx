@@ -77,47 +77,54 @@ export default function MovesPanel({
         {skills.map((s) => <Btn key={s.key} skill={s} />)}
       </div>
 
-      {/* Always-visible move description — readable on desktop hover and mobile tap alike */}
+      {/* Always-visible move description — shown on hover *and* whenever a
+          move is selected, so it never depends on hovering (which touch
+          devices can't do anyway) and stays visible while a selected move
+          waits on Confirm/Cancel. */}
       <div className="w-full max-w-xl bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-sm text-gray-200 min-h-[3.75rem]">
-        {pendingMove ? (
-          <div className="flex items-center justify-between gap-3">
-            <span>
-              <span className="font-semibold text-yellow-400">{pendingMove.label}:</span>{" "}
-              {canConfirm
-                ? "Ready to use — press Confirm."
-                : `Choose ${pendingMove.needs === "enemy" ? "an" : "a"} ${needsTargetWord(pendingMove.needs).toLowerCase()} target, then press Confirm.`}
-            </span>
-            <div className="flex shrink-0 gap-2">
-              {onCancelPending && (
-                <button
-                  onClick={onCancelPending}
-                  className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600"
-                >
-                  Cancel
-                </button>
-              )}
-              {onConfirm && (
-                <button
-                  onClick={onConfirm}
-                  disabled={!canConfirm}
-                  className={`text-xs px-3 py-1 rounded font-semibold
-                    ${canConfirm
-                      ? "bg-green-600 hover:bg-green-700"
-                      : "bg-gray-600 cursor-not-allowed opacity-60"}
-                  `}
-                >
-                  Confirm
-                </button>
+        {activeSkill ? (
+          <>
+            <div className="flex items-center justify-between gap-3">
+              <span>
+                <span className="font-semibold text-yellow-400">{activeSkill.label}</span>{" "}
+                <span className="text-gray-400">
+                  ({needsTargetWord(activeSkill.target)} • {activeSkill.cost || 0} SP)
+                </span>
+              </span>
+              {pendingMove && (
+                <div className="flex shrink-0 gap-2">
+                  {onCancelPending && (
+                    <button
+                      onClick={onCancelPending}
+                      className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  {onConfirm && (
+                    <button
+                      onClick={onConfirm}
+                      disabled={!canConfirm}
+                      className={`text-xs px-3 py-1 rounded font-semibold
+                        ${canConfirm
+                          ? "bg-green-600 hover:bg-green-700"
+                          : "bg-gray-600 cursor-not-allowed opacity-60"}
+                      `}
+                    >
+                      Confirm
+                    </button>
+                  )}
+                </div>
               )}
             </div>
-          </div>
-        ) : activeSkill ? (
-          <>
-            <span className="font-semibold text-yellow-400">{activeSkill.label}</span>{" "}
-            <span className="text-gray-400">
-              ({needsTargetWord(activeSkill.target)} • {activeSkill.cost || 0} SP)
-            </span>
             <div className="mt-1">{activeSkill.desc || "No description available."}</div>
+            {pendingMove && (
+              <div className="mt-1 text-xs text-yellow-300">
+                {canConfirm
+                  ? "Ready to use — press Confirm."
+                  : `Choose ${pendingMove.needs === "enemy" ? "an" : "a"} ${needsTargetWord(pendingMove.needs).toLowerCase()} target, then press Confirm.`}
+              </div>
+            )}
           </>
         ) : (
           <span className="text-gray-400">Hover or tap a move to see what it does.</span>
