@@ -15,6 +15,25 @@ npm start        # serves the app + Socket.IO on $PORT (default 8080)
 
 ## Changelog
 
+### 2026-08-06 — Bug reporting, matchmaking fix, move-selection fix
+
+- **Report a Bug button** — a 🐛 button on the lobby landing page opens a
+  form (bug/feedback/suggestion + description) that's saved server-side
+  for review, so players can flag issues without leaving the app.
+- **Fixed active matches breaking when a 3rd+ player showed up** —
+  starting a private match without first leaving the public queue (both
+  are reachable from the same lobby screen at once) left a stale queue
+  entry behind. The next unrelated player to click "Find Match" got
+  silently paired with it, corrupting the room data of whoever was
+  already mid-match. Both directions of this are now guarded.
+- **Fixed move selection misbehaving on desktop** — hovering near other
+  moves while trying to reach a target or the Confirm button could swap
+  the description panel to the wrong move, and, more seriously, the move
+  buttons were being torn down and rebuilt on every re-render, which
+  under mouse hover could loop indefinitely. Moves now each have their
+  own ⓘ info icon for previewing descriptions, fully separate from
+  selecting a move to use.
+
 ### 2026-08-06 — Reconnect fix, room controls, character guide
 
 - **Fixed attacks/actions appearing "stuck" over a real deployment** —
