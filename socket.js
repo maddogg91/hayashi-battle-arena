@@ -453,9 +453,11 @@ export function initSocket(httpServer) {
       io.to(roomId).emit("replaySaved", { replayId });
 
       // Fire-and-forget: post a recap of this match's personal chat to
-      // Discord (no-op if DISCORD_WEBHOOK_URL isn't set), independent of
-      // the disk save above so a slow/unreachable webhook never delays the
-      // player's confirmation.
+      // Discord, independent of the disk save above so a slow/unreachable
+      // webhook never delays the player's confirmation. Posts to a
+      // dedicated DISCORD_REPLAY_WEBHOOK_URL if set, else falls back to
+      // the general DISCORD_WEBHOOK_URL (see postToDiscord); no-op if
+      // neither is configured.
       const room = rooms[roomId];
       const winnerLine = state.log?.find((l) => l.includes("🏆")) || null;
       const summary = buildChatSummary({
@@ -464,7 +466,7 @@ export function initSocket(httpServer) {
         chat: room?.chat || [],
         winnerLine,
       });
-      postToDiscord({ content: summary });
+      postToDiscord({ content: summary }, { webhookUrl: process.env.DISCORD_REPLAY_WEBHOOK_URL });
     });
 
     /* -------- Chat -------- */

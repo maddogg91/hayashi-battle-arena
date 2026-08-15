@@ -15,8 +15,7 @@ npm start        # serves the app + Socket.IO on $PORT (default 8080)
 
 ### Optional: Discord notifications
 
-Set the `DISCORD_WEBHOOK_URL` environment variable to enable two things,
-both posting to the same channel:
+Set the `DISCORD_WEBHOOK_URL` environment variable to enable two things:
 
 - Every "Report a Bug" submission also posts to Discord, in addition to
   being saved to disk.
@@ -25,22 +24,38 @@ both posting to the same channel:
   limit, keeping the most recent messages first if the full log doesn't
   fit (with a note on how many earlier messages were left out).
 
+Both post to the same channel by default. To send match recaps to a
+*different* channel than bug reports, also set `DISCORD_REPLAY_WEBHOOK_URL`
+— when it's set, Save Replay posts there instead; when it's unset, Save
+Replay falls back to `DISCORD_WEBHOOK_URL` like before, so existing
+single-webhook setups keep working unchanged.
+
 To get a webhook URL: in Discord, go to the target channel's Settings ->
 Integrations -> Webhooks -> New Webhook, then copy its URL.
 
 ```bash
 # locally (.env, not committed)
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+DISCORD_REPLAY_WEBHOOK_URL=https://discord.com/api/webhooks/...   # optional, separate channel for replays
 
 # Heroku
 heroku config:set DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+heroku config:set DISCORD_REPLAY_WEBHOOK_URL=https://discord.com/api/webhooks/...
 ```
 
-Treat this URL like a secret — anyone who has it can post to your channel.
-If it's unset, both features still work as normal (feedback saved to
-disk, replay saved to disk); Discord posting is simply skipped.
+Treat these URLs like secrets — anyone who has one can post to that
+channel. If both are unset, both features still work as normal (feedback
+saved to disk, replay saved to disk); Discord posting is simply skipped.
 
 ## Changelog
+
+### 2026-08-07 — Separate Discord webhook for replay recaps
+
+- **Match recaps posted by Save Replay can now go to a different Discord
+  channel than bug reports** — set the new `DISCORD_REPLAY_WEBHOOK_URL`
+  environment variable (see "Running locally" above). If it's unset,
+  replay recaps fall back to the general `DISCORD_WEBHOOK_URL` exactly as
+  before, so nothing changes for existing setups.
 
 ### 2026-08-07 — Save Replay posts a chat recap to Discord
 
