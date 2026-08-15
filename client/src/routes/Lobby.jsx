@@ -172,6 +172,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
         <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
           <h2 className="text-lg font-semibold text-yellow-400 mb-3">What's New</h2>
           <ul className="text-sm text-gray-300 space-y-1.5 list-disc list-inside">
+            <li>Status effects, stacks, and active modes (Charmed, Creature Summon, Lightning Charge, Kimura Special, etc.) are now shown for every fighter on the battle grid, not just whoever's currently acting.</li>
             <li>Speed ties in turn order are now a coin flip each round instead of always favoring Team A.</li>
             <li>New signature movesets for Star, Sai, Sendara, Kenshin, and Kairu — a charm-and-punish assassin, a chain-stacking brawler, a combo spearwoman, a Lightning-vs-Rock stance switcher, and a dodge-tank light-user.</li>
             <li>New signature movesets for Arisa, Erika, Jett, Shou, and Maako — stacking summons, a mode-switching gunslinger, a self-sacrificing demon form, intangible flames, and more. Basic Attack is now Rest: skip your turn for a bonus 10 SP.</li>
