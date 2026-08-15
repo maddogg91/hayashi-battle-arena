@@ -21,6 +21,8 @@ function meetsRequires(skill, unit, team) {
     const others = (team || []).filter((u) => u !== unit && u.hp > 0);
     if (others.length === 0) return false;
   }
+  if (req.stacksZero && (unit.stacks?.[req.stacksZero] || 0) > 0) return false;
+  if (req.notAfterMove && unit.comboKey === req.notAfterMove) return false;
   return true;
 }
 

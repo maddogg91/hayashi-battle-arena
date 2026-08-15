@@ -26,7 +26,7 @@ let cache = loadRoster();    // { chars, movesByChar, dialogueRows }
 // --- utilities ---
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 
-function newEffects() { return { stun:0, bind:0, burn:0, shield:0, reflect:0, invuln:0 }; }
+function newEffects() { return { stun:0, bind:0, burn:0, shield:0, reflect:0, invuln:0, charm:0 }; }
 function addEffect(f, k, turns) { f.effects[k] = Math.max(f.effects[k], turns); }
 function tickEffects(f) {
   for (const k of Object.keys(f.effects)) if (f.effects[k] > 0) f.effects[k] -= 1;
@@ -48,6 +48,13 @@ function hasUntargetableMode(u) {
   const modes = u.modes || {};
   return Object.values(modes).some(m => m && m.turns > 0 && m.untargetable);
 }
+// A mode can carry a chance to dodge incoming attacks entirely (e.g.
+// Kairu's Imbue with Light). Multiple active modes with a dodge chance
+// use the highest one.
+function dodgeChanceOf(u) {
+  const modes = u.modes || {};
+  return Object.values(modes).reduce((max, m) => (m && m.turns > 0 && m.dodgeChance > max ? m.dodgeChance : max), 0);
+}
 function statWithMods(base, mods, key) {
   return Math.max(0, base + mods.filter(m => m.stat === key).reduce((s,m)=>s+m.amount,0));
 }
@@ -68,14 +75,27 @@ function hitWithIgnore(attacker, defender, addBase, ignoreFrac=0) {
   const d = Math.max(0, Math.floor(effStats(defender).def * (1 - (ignoreFrac||0))));
   return Math.max(5, Math.floor(addBase + a - d));
 }
-function applyDamage(attacker, defender, raw) {
+function applyDamage(attacker, defender, raw, opts = {}) {
   let dmg = raw;
   const notes = [];
+  const dodge = dodgeChanceOf(defender);
+  if (dodge > 0 && Math.random() < dodge) {
+    notes.push(`${defender.name} dodges the attack!`);
+    return { dmg: 0, notes };
+  }
   if (defender.effects.invuln > 0) {
     notes.push(`${defender.name} is invulnerable and takes no damage.`);
     return { dmg: 0, notes };
   }
-  if (defender.effects.shield > 0) {
+  // Kenshin's Rock Armor stacks: persistent incoming-damage reduction,
+  // distinct from (and stacked on top of) the shield effect below.
+  const armorStacks = (defender.stacks && defender.stacks.rockarmor) || 0;
+  if (armorStacks > 0) {
+    const reduced = Math.max(1, Math.floor(dmg * (1 - 0.25 * armorStacks)));
+    notes.push(`${defender.name}'s armor absorbs some damage (−${dmg - reduced}).`);
+    dmg = reduced;
+  }
+  if (!opts.unguardable && defender.effects.shield > 0) {
     const reduced = Math.max(1, Math.floor(dmg * 0.5));
     notes.push(`${defender.name} is shielded (−${dmg - reduced}).`);
     dmg = reduced;
@@ -89,8 +109,8 @@ function applyDamage(attacker, defender, raw) {
   return { dmg, notes };
 }
 
-const EFFECT_LABEL = { stun: "Stun", bind: "Bind", burn: "Burn", shield: "a Shield", reflect: "Reflect", invuln: "Invulnerability" };
-const STAT_LABEL = { atk: "ATK", def: "DEF", spd: "SPD" };
+const EFFECT_LABEL = { stun: "Stun", bind: "Bind", burn: "Burn", shield: "a Shield", reflect: "Reflect", invuln: "Invulnerability", charm: "Charm" };
+const STAT_LABEL = { atk: "ATK", def: "DEF", spd: "SPD", spregen: "SP Regen" };
 
 // --- turn order ---
 function everyone(game) { return ["A","B"].flatMap(r => game.teams[r].map((u,i)=>({role:r,i,u}))); }
@@ -145,6 +165,14 @@ function startTurnUpkeep(u, game) {
         game.log.push(`${u.name} takes ${m.selfDamage} damage from ${label}.`);
       }
     }
+  }
+  // Sendara's Warrior Spirit: reuses the stat-mod list (which already
+  // supports multiple independently-expiring stacked entries) for a
+  // per-turn SP grant instead of an atk/def/spd bonus.
+  const regen = (u.mods || []).filter(m => m.stat === "spregen").reduce((s, m) => s + m.amount, 0);
+  if (regen > 0 && u.hp > 0) {
+    u.sp = clamp(u.sp + regen, 0, MAX_SP);
+    game.log.push(`${u.name} gains ${regen} bonus SP from Warrior Spirit.`);
   }
 }
 
@@ -210,6 +238,7 @@ function pickTargets(game, actorRole, spec, target) {
       return legalFoe.length ? [legalFoe[0]] : [];
     }
     case "aoe_enemy": return legalFoe;
+    case "aoe_charmed_enemy": return legalFoe.filter(x => x.effects.charm > 0);
     case "aoe_team":  return my.filter(x=>x.hp>0);
     case "aoe_all":   return [...my.filter(x=>x.hp>0), ...legalFoe];
     default:          return [];
@@ -229,6 +258,7 @@ function resolveScopeTargets(game, actor, scope) {
     case "aoe_team":        return my.filter(x => x.hp > 0);
     case "aoe_team_others": return my.filter(x => x.hp > 0 && x !== actor);
     case "aoe_enemy":       return foe.filter(x => x.hp > 0 && !hasUntargetableMode(x));
+    case "aoe_charmed_enemy": return foe.filter(x => x.hp > 0 && !hasUntargetableMode(x) && x.effects.charm > 0);
     default:                return null;
   }
 }
@@ -247,11 +277,15 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
         const count = (actor.stacks && actor.stacks[name]) || 0;
         base += Number(per || 0) * count;
       }
+      if (step.comboBonus) {
+        base += Number(step.comboBonus.per || 0) * (actor.comboCount || 0);
+      }
       const ignore = Number(step.ignore || 0);
       const stepTargets = (step.target && resolveScopeTargets(game, actor, step.target)) || arr;
       stepTargets.forEach(t => {
-        const { dmg, notes } = applyDamage(actor, t, hitWithIgnore(actor, t, base, ignore));
+        const { dmg, notes } = applyDamage(actor, t, hitWithIgnore(actor, t, base, ignore), { unguardable: !!step.unguardable });
         log.push(`${actor.name} attacks ${t.name} with ${skillLabel}, dealing ${dmg} damage.`, ...notes);
+        if (step.clearEffect) t.effects[step.clearEffect] = 0;
       });
       if (step.consumeStack) {
         actor.stacks = actor.stacks || {};
@@ -283,20 +317,25 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
       const label = EFFECT_LABEL[type] || type;
       if (!scope) {
         each(t => {
-          if (Math.random() >= chance) return;
-          addEffect(t, type, turns);
-          log.push(`${t.name} is afflicted with ${label} (${turns}) by ${skillLabel}.`);
+          if (Math.random() < chance) {
+            addEffect(t, type, turns);
+            log.push(`${t.name} is afflicted with ${label} (${turns}) by ${skillLabel}.`);
+          }
+          if (step.clearEffect) t.effects[step.clearEffect] = 0;
         });
       } else if (scope === "self") {
         if (Math.random() < chance) {
           addEffect(actor, type, turns);
           log.push(`${actor.name} gains ${label} (${turns}) from ${skillLabel}.`);
         }
+        if (step.clearEffect) actor.effects[step.clearEffect] = 0;
       } else if (scope === "aoe_team") {
         game.teams[game.actor.role].forEach(t => {
-          if (Math.random() >= chance) return;
-          addEffect(t, type, turns);
-          log.push(`${t.name} gains ${label} (${turns}) from ${skillLabel}.`);
+          if (Math.random() < chance) {
+            addEffect(t, type, turns);
+            log.push(`${t.name} gains ${label} (${turns}) from ${skillLabel}.`);
+          }
+          if (step.clearEffect) t.effects[step.clearEffect] = 0;
         });
       }
     } else if (kind === "cleanse") {
@@ -328,6 +367,7 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
         turns,
         selfDamage: Number(step.selfDamage || 0),
         untargetable: !!step.untargetable,
+        dodgeChance: Number(step.dodgeChance || 0),
       };
       log.push(`${actor.name} activates ${skillLabel}.`);
     } else if (kind === "modeClear") {
@@ -411,6 +451,8 @@ export function initGame(selections, roomId, names = {}) {
       mods: [],
       stacks: {},
       modes: {},
+      comboKey: null,
+      comboCount: 0,
       skills: [...moves, REST],
     };
   });
@@ -462,6 +504,20 @@ function requirementsMet(unit, game, requires) {
     const others = myTeam.filter(x => x !== unit && x.hp > 0);
     if (others.length === 0) return false;
   }
+  // Mutual-exclusion gate (e.g. Kenshin can't stack Lightning Charge while
+  // Rock Armor is stacked, or vice versa).
+  if (requires.stacksZero) {
+    if ((unit.stacks?.[requires.stacksZero] || 0) > 0) return false;
+  }
+  // Blocks a move if it was preceded by a specific other move on this
+  // unit's last turn (e.g. Sendara can't follow Spear Chuck with
+  // Unyielding Barrage). Reads the same comboKey tracking handleMove
+  // updates for every move (see below), so this always reflects the
+  // *previous* move — the update for the move being checked right now
+  // hasn't happened yet.
+  if (requires.notAfterMove) {
+    if (unit.comboKey === requires.notAfterMove) return false;
+  }
   return true;
 }
 
@@ -490,19 +546,55 @@ export function handleMove(roomId, playerRole, payload) {
   // Special, Shou's Arahabaki, Maako's Intangible Flames) — a different
   // target spec/action list (altTarget/altActions), or extra bonus actions
   // layered on top of the normal ones (Maako's Fire Wall).
-  const useAlt = !!(skill.altIf && me.modes?.[skill.altIf]?.turns > 0);
+  const useAltMode = !!(skill.altIf && me.modes?.[skill.altIf]?.turns > 0);
   const useExtra = !!(skill.extraIf && me.modes?.[skill.extraIf]?.turns > 0);
-  const targetSpec = (useAlt && skill.altTarget) || skill.target;
+  const targetSpec = (useAltMode && skill.altTarget) || skill.target;
 
   const targets = pickTargets(game, actor.role, targetSpec, target);
   if (!targets || targets.length === 0) return game;
 
+  // Some skills branch off the *target's* status instead of the actor's own
+  // (e.g. Sai's Ball & Chain hits harder if the target is already bound).
+  const useAltTarget = !!(skill.altIfTargetEffect && targets.some(t => t.effects?.[skill.altIfTargetEffect] > 0));
+  const useAlt = useAltMode || useAltTarget;
+
   let actions = useAlt ? (skill.altActions || skill.actions || []) : (skill.actions || []);
   if (useExtra && skill.extraActions) actions = [...actions, ...skill.extraActions];
+  // A skill can layer on multiple independent bonus effects, each gated by
+  // its own condition (e.g. Kenshin's Elemental Barrage: burn if Lightning
+  // Charge is stacked, stun if Rock Armor is stacked instead).
+  if (Array.isArray(skill.extras)) {
+    for (const extra of skill.extras) {
+      const met = extra.ifMode
+        ? me.modes?.[extra.ifMode]?.turns > 0
+        : extra.ifStack
+        ? (me.stacks?.[extra.ifStack.name] || 0) >= (extra.ifStack.min ?? 1)
+        : false;
+      if (met && extra.actions) actions = [...actions, ...extra.actions];
+    }
+  }
+
+  // Generic "same move used on consecutive turns" tracking. Only skills
+  // that opt in via `comboKey` build/reset a streak (e.g. Sendara's Spear
+  // Chuck); any other move resets it to null, so `requires.notAfterMove`
+  // and `comboBonus` both read a streak that only survives literal
+  // back-to-back uses of the same flagged move.
+  if (skill.comboKey) {
+    me.comboCount = me.comboKey === skill.comboKey ? (me.comboCount || 0) + 1 : 0;
+    me.comboKey = skill.comboKey;
+  } else {
+    me.comboKey = null;
+    me.comboCount = 0;
+  }
 
   const log = [];
   resolveActions(game, me, targets, actions, log, skill.label);
   me.sp = clamp(me.sp - cost, 0, MAX_SP);
+
+  if (Array.isArray(skill.clearStacksAfter)) {
+    me.stacks = me.stacks || {};
+    for (const name of skill.clearStacksAfter) me.stacks[name] = 0;
+  }
 
   game.log.push(...log);
 

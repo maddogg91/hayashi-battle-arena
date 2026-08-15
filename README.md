@@ -34,6 +34,37 @@ is simply skipped.
 
 ## Changelog
 
+### 2026-08-07 — New signature movesets for Star, Sai, Sendara, Kenshin, and Kairu
+
+- **Five more reworked kits**, each built around a new signature mechanic:
+  - **Star Trethowan** afflicts enemies with Charm via Charm-shuriken, then
+    cashes it in with Love Illusion (self-invulnerable unguardable AOE),
+    Kiss of Death (a big unguardable AOE nuke), or Broken Heart (an AOE
+    stun) — all of which clear Charm afterward.
+  - **Sai Ryuzaki's** Ball & Chain hits much harder and unguardably if the
+    target is currently bound by Binding Chain; Chain Dance stacks up to 3
+    times to power up Half-moon Melee's unguardable payoff.
+  - **Sendara Al Vere's** Spear Chuck gains +5 damage for every consecutive
+    turn it's used in a row (reset by using anything else); Warrior Spirit
+    grants stacking per-turn bonus SP; Unyielding Barrage can't follow a
+    Spear Chuck and locks Sendara down afterward; Stand Your Ground halves
+    incoming damage for 2 turns at the cost of her next turn.
+  - **Kenshin** now stacks either Lightning Charge (bonus damage on all his
+    attacks) or Rock Armor (reduces incoming damage) — never both at once —
+    and Elemental Barrage pays off whichever is active with bonus burn or
+    stun before clearing the stacks.
+  - **Kairu Yusoko's** Imbue with Light grants a 50% dodge chance for 3
+    turns; while active, Bo Staff Strike and Flash Kick also stun, and
+    Light of Life heals the whole team instead of just himself.
+  - New engine mechanics added for this batch: a Charm status with a
+    "target all charmed enemies" scope, unguardable damage (bypasses
+    Shield), branching a skill off the *target's* status instead of the
+    actor's own, consecutive-same-move combo tracking, stacking per-turn SP
+    regen, mutually-exclusive stack gating, persistent incoming-damage
+    reduction, and chance-based dodging. Verified with a 51-assertion test
+    script covering every new interaction, plus a full regression
+    playthrough of the previous batch and the untouched legacy roster.
+
 ### 2026-08-07 — Discord notifications for player feedback
 
 - **Report a Bug submissions now optionally post to Discord** — set the
