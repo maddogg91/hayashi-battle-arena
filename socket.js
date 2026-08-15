@@ -6,7 +6,7 @@ import crypto from "crypto";
 import { initGame, handleMove, getGame } from "./game/engine.js";
 import { saveReplayToDisk } from "./replays.js";
 import { postToDiscord } from "./discord.js";
-import { buildChatSummary } from "./chatSummary.js";
+import { buildBattleLogSummary } from "./battleLogSummary.js";
 
 /**
  * Room shape:
@@ -452,7 +452,7 @@ export function initSocket(httpServer) {
       replays[replayId] = { id: replayId, ts: now(), roomId, turns: state.log?.length || 0 };
       io.to(roomId).emit("replaySaved", { replayId });
 
-      // Fire-and-forget: post a recap of this match's personal chat to
+      // Fire-and-forget: post a recap of this match's battle log to
       // Discord, independent of the disk save above so a slow/unreachable
       // webhook never delays the player's confirmation. Posts to a
       // dedicated DISCORD_REPLAY_WEBHOOK_URL if set, else falls back to
@@ -460,10 +460,10 @@ export function initSocket(httpServer) {
       // neither is configured.
       const room = rooms[roomId];
       const winnerLine = state.log?.find((l) => l.includes("🏆")) || null;
-      const summary = buildChatSummary({
+      const summary = buildBattleLogSummary({
         namesA: room?.names?.A || "Player A",
         namesB: room?.names?.B || "Player B",
-        chat: room?.chat || [],
+        log: state.log || [],
         winnerLine,
       });
       postToDiscord({ content: summary }, { webhookUrl: process.env.DISCORD_REPLAY_WEBHOOK_URL });
