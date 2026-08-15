@@ -164,7 +164,9 @@ function checkWin(game) {
     game.log.push(`🏆 Team ${winner} wins!`);
   }
 }
-function canAct(u) { return u.hp>0 && u.effects.stun<=0 && u.effects.bind<=0; }
+// Bind still deterministically prevents acting. Stun no longer does — see
+// beginTurn(), which coin-flips a stunned unit's own turn instead.
+function canAct(u) { return u.hp>0 && u.effects.bind<=0; }
 function startTurnUpkeep(u, game) {
   if (u.effects.burn > 0) {
     const burnDmg = 6;
@@ -213,12 +215,26 @@ function beginTurn(game) {
     if (game.over) return;
     if (unit.hp <= 0) { game.pos += 1; continue; }
 
-    const actionable = canAct(unit);
+    // A stunned unit isn't automatically skipped anymore — each of their
+    // own turns while stunned is a fresh 50/50 coin flip between powering
+    // through (acts as normal) and being too stunned to act (turn
+    // skipped), rather than a guaranteed skip for the whole duration.
+    let actionable = canAct(unit);
+    let stunRoll = null;
+    if (actionable && unit.effects.stun > 0) {
+      stunRoll = Math.random() < 0.5;
+      actionable = stunRoll;
+    }
     if (actionable) {
-      game.log.push(`🎯 ${unit.name} is ready to act.`);
+      if (stunRoll) {
+        game.log.push(`💪 ${unit.name} powers through the stun and is ready to act!`);
+      } else {
+        game.log.push(`🎯 ${unit.name} is ready to act.`);
+      }
+    } else if (unit.effects.bind > 0) {
+      game.log.push(`${unit.name} is bound and cannot act — turn skipped.`);
     } else {
-      const reason = unit.effects.stun > 0 ? "stunned" : "bound";
-      game.log.push(`${unit.name} is ${reason} and cannot act — turn skipped.`);
+      game.log.push(`😵 ${unit.name} is too stunned to act — turn skipped.`);
     }
 
     // It's this unit's own turn: their personal status effects and stat

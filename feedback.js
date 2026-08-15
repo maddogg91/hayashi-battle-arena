@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { customAlphabet } from "nanoid";
+import { postToDiscord } from "./discord.js";
 const nanoid = customAlphabet("abcdef0123456789", 10);
 
 const __filename = fileURLToPath(import.meta.url);
@@ -32,16 +33,12 @@ const CATEGORY_META = {
   suggestion: { title: "💡 New Suggestion", color: 0xca8a04 },
 };
 
-// Posts a submitted report to a Discord channel via an incoming webhook
-// (Server Settings -> Integrations -> Webhooks in Discord). Optional: does
-// nothing if DISCORD_WEBHOOK_URL isn't configured, so this never blocks or
+// Posts a submitted report to a Discord channel. See discord.js — this is
+// a no-op if DISCORD_WEBHOOK_URL isn't configured, so it never blocks or
 // breaks feedback submission if it's unset or Discord is unreachable.
 export async function notifyDiscord(record) {
-  const url = process.env.DISCORD_WEBHOOK_URL;
-  if (!url) return;
-
   const meta = CATEGORY_META[record.category] || CATEGORY_META.bug;
-  const body = {
+  await postToDiscord({
     embeds: [
       {
         title: meta.title,
@@ -55,18 +52,5 @@ export async function notifyDiscord(record) {
         timestamp: new Date(record.ts).toISOString(),
       },
     ],
-  };
-
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      console.error("Discord webhook failed:", res.status, await res.text());
-    }
-  } catch (err) {
-    console.error("Discord webhook error:", err.message);
-  }
+  });
 }

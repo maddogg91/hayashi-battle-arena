@@ -13,26 +13,70 @@ npm run build   # builds the client into public/app
 npm start        # serves the app + Socket.IO on $PORT (default 8080)
 ```
 
-### Optional: Discord notifications for player feedback
+### Optional: Discord notifications
 
-Set the `DISCORD_WEBHOOK_URL` environment variable to have every "Report a
-Bug" submission also post to a Discord channel, in addition to being saved
-to disk. To get a webhook URL: in Discord, go to the target channel's
-Settings -> Integrations -> Webhooks -> New Webhook, then copy its URL.
+Set the `DISCORD_WEBHOOK_URL` environment variable to enable two things:
+
+- Every "Report a Bug" submission also posts to Discord, in addition to
+  being saved to disk.
+- Clicking **Save Replay** after a match posts a recap of that match's
+  personal chat to Discord — capped at Discord's 2000-character message
+  limit, keeping the most recent messages first if the full log doesn't
+  fit (with a note on how many earlier messages were left out).
+
+Both post to the same channel by default. To send match recaps to a
+*different* channel than bug reports, also set `DISCORD_REPLAY_WEBHOOK_URL`
+— when it's set, Save Replay posts there instead; when it's unset, Save
+Replay falls back to `DISCORD_WEBHOOK_URL` like before, so existing
+single-webhook setups keep working unchanged.
+
+To get a webhook URL: in Discord, go to the target channel's Settings ->
+Integrations -> Webhooks -> New Webhook, then copy its URL.
 
 ```bash
 # locally (.env, not committed)
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+DISCORD_REPLAY_WEBHOOK_URL=https://discord.com/api/webhooks/...   # optional, separate channel for replays
 
 # Heroku
 heroku config:set DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+heroku config:set DISCORD_REPLAY_WEBHOOK_URL=https://discord.com/api/webhooks/...
 ```
 
-Treat this URL like a secret — anyone who has it can post to your channel.
-If it's unset, feedback is still saved to disk as before; Discord posting
-is simply skipped.
+Treat these URLs like secrets — anyone who has one can post to that
+channel. If both are unset, both features still work as normal (feedback
+saved to disk, replay saved to disk); Discord posting is simply skipped.
 
 ## Changelog
+
+### 2026-08-07 — Separate Discord webhook for replay recaps
+
+- **Match recaps posted by Save Replay can now go to a different Discord
+  channel than bug reports** — set the new `DISCORD_REPLAY_WEBHOOK_URL`
+  environment variable (see "Running locally" above). If it's unset,
+  replay recaps fall back to the general `DISCORD_WEBHOOK_URL` exactly as
+  before, so nothing changes for existing setups.
+
+### 2026-08-07 — Save Replay posts a chat recap to Discord
+
+- **Clicking Save Replay now also posts a recap of that match's personal
+  chat to Discord** (when `DISCORD_WEBHOOK_URL` is set — see "Running
+  locally" above), alongside the existing on-disk replay save. The recap
+  is capped at Discord's 2000-character message limit; if the full chat
+  log doesn't fit, it keeps the most recent messages and notes how many
+  earlier ones were left out, rather than cutting off mid-message.
+  Extracted the Discord-webhook-posting logic (previously only used by
+  bug reports) into a small shared helper (`discord.js`) so both features
+  reuse the same fire-and-forget, fails-gracefully posting code.
+
+### 2026-08-07 — Stun is now a coin flip instead of a guaranteed skip
+
+- **Stunned characters get a 50/50 chance to act on each of their own
+  turns while stunned**, instead of automatically losing the turn for the
+  whole duration. The battle log calls out which happened each time —
+  "💪 X powers through the stun and is ready to act!" or "😵 X is too
+  stunned to act — turn skipped." Stun's duration still counts down
+  normally either way. Bind is unchanged: it's still a guaranteed skip.
 
 ### 2026-08-07 — Status effects and stacks now visible for every fighter
 

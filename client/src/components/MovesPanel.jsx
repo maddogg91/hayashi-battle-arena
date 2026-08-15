@@ -77,7 +77,12 @@ export default function MovesPanel({
   const modes = myUnit.modes || {};
   const skills = myUnit.skills || [];
 
-  const cannotAct = !canAct || effects.stun > 0 || effects.bind > 0;
+  // Stun no longer automatically blocks acting — the server only ever
+  // hands this unit the turn (canAct=true) if they're not stunned or won
+  // this turn's coin flip to power through it, so `effects.stun` alone
+  // isn't a reason to grey out the panel anymore. Bind still is, since
+  // it's a guaranteed skip.
+  const cannotAct = !canAct || effects.bind > 0;
 
   const needsTargetWord = (t) => {
     if (!t || t === "none") return "No target";
