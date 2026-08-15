@@ -85,6 +85,7 @@ export default function MovesPanel({
     if (t === "enemy") return "Enemy";
     if (t === "aoe_team") return "All Allies";
     if (t === "aoe_enemy") return "All Enemies";
+    if (t === "aoe_charmed_enemy") return "Charmed Enemies";
     if (t === "aoe_all") return "Everyone";
     return t;
   };
@@ -103,6 +104,8 @@ export default function MovesPanel({
       const others = myTeam.filter((u) => u !== myUnit && u.hp > 0);
       if (others.length === 0) return false;
     }
+    if (req.stacksZero && (stacks[req.stacksZero] || 0) > 0) return false;
+    if (req.notAfterMove && myUnit.comboKey === req.notAfterMove) return false;
     return true;
   };
   const disabled = (skill) => {
@@ -141,6 +144,7 @@ export default function MovesPanel({
         {effects.shield > 0 && <span className="px-2 py-1 bg-blue-700 rounded">Shield {effects.shield}</span>}
         {effects.reflect > 0 && <span className="px-2 py-1 bg-indigo-700 rounded">Reflect {effects.reflect}</span>}
         {effects.invuln > 0 && <span className="px-2 py-1 bg-cyan-700 rounded">Invulnerable {effects.invuln}</span>}
+        {effects.charm > 0 && <span className="px-2 py-1 bg-pink-600 rounded">Charmed</span>}
         {Object.entries(stacks).filter(([, v]) => v > 0).map(([name, v]) => (
           <span key={name} className="px-2 py-1 bg-purple-800 rounded capitalize">{name} x{v}</span>
         ))}
