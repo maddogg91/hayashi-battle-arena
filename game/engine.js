@@ -26,7 +26,7 @@ let cache = loadRoster();    // { chars, movesByChar, dialogueRows }
 // --- utilities ---
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 
-function newEffects() { return { stun:0, bind:0, burn:0, shield:0, reflect:0, invuln:0, charm:0 }; }
+function newEffects() { return { stun:0, bind:0, burn:0, shield:0, reflect:0, invuln:0, charm:0, immune:0 }; }
 function addEffect(f, k, turns) { f.effects[k] = Math.max(f.effects[k], turns); }
 function tickEffects(f) {
   for (const k of Object.keys(f.effects)) if (f.effects[k] > 0) f.effects[k] -= 1;
@@ -54,6 +54,19 @@ function hasUntargetableMode(u) {
 function dodgeChanceOf(u) {
   const modes = u.modes || {};
   return Object.values(modes).reduce((max, m) => (m && m.turns > 0 && m.dodgeChance > max ? m.dodgeChance : max), 0);
+}
+// Multiplicative outgoing-damage bonus from active modes (e.g. Ben's Fist of
+// the King, Paul's Strategize, Kaitsu's Self-Proclamation). Multiple active
+// sources stack multiplicatively.
+function dmgMultOf(u) {
+  const modes = u.modes || {};
+  return Object.values(modes).reduce((mult, m) => (m && m.turns > 0 && m.dmgMult ? mult * m.dmgMult : mult), 1);
+}
+// A mode flagged `trueStrike` (e.g. Kaitsu's Steady Aim) lets its owner's
+// attacks bypass untargetable modes and invulnerability entirely.
+function hasTrueStrikeMode(u) {
+  const modes = u.modes || {};
+  return Object.values(modes).some(m => m && m.turns > 0 && m.trueStrike);
 }
 function statWithMods(base, mods, key) {
   return Math.max(0, base + mods.filter(m => m.stat === key).reduce((s,m)=>s+m.amount,0));
@@ -83,15 +96,21 @@ function applyDamage(attacker, defender, raw, opts = {}) {
     notes.push(`${defender.name} dodges the attack!`);
     return { dmg: 0, notes };
   }
-  if (defender.effects.invuln > 0) {
+  if (defender.effects.invuln > 0 && !opts.trueStrike) {
     notes.push(`${defender.name} is invulnerable and takes no damage.`);
     return { dmg: 0, notes };
   }
-  // Kenshin's Rock Armor stacks: persistent incoming-damage reduction,
-  // distinct from (and stacked on top of) the shield effect below.
-  const armorStacks = (defender.stacks && defender.stacks.rockarmor) || 0;
-  if (armorStacks > 0) {
-    const reduced = Math.max(1, Math.floor(dmg * (1 - 0.25 * armorStacks)));
+  // Persistent incoming-damage-reduction stacks (Kenshin's Rock Armor,
+  // Paul's Drone stacks): each named stack type reduces damage by a flat
+  // percent per stack, distinct from (and stacked on top of) the shield
+  // effect below.
+  const ARMOR_STACK_PCT = { rockarmor: 0.25, dronestack: 0.25 };
+  let armorReduction = 0;
+  for (const [name, pct] of Object.entries(ARMOR_STACK_PCT)) {
+    armorReduction += ((defender.stacks && defender.stacks[name]) || 0) * pct;
+  }
+  if (armorReduction > 0) {
+    const reduced = Math.max(1, Math.floor(dmg * (1 - Math.min(0.9, armorReduction))));
     notes.push(`${defender.name}'s armor absorbs some damage (−${dmg - reduced}).`);
     dmg = reduced;
   }
@@ -242,7 +261,10 @@ function beginTurn(game) {
     tickEffects(unit);
 
     if (actionable) {
-      game.actor = { role, i };
+      // `bonusUsed` tracks Liara's Quick Step: a unit with an active
+      // `extraAction` mode gets a second action within this same turn slot
+      // before play passes on — see handleMove().
+      game.actor = { role, i, bonusUsed: false };
       game.turn = role;
       return;
     }
@@ -255,7 +277,10 @@ function beginTurn(game) {
 function pickTargets(game, actorRole, spec, target) {
   const my = game.teams[actorRole];
   const allFoe = game.teams[actorRole === "A" ? "B" : "A"];
-  const legalFoe = allFoe.filter(x => x.hp > 0 && !hasUntargetableMode(x));
+  // A trueStrike mode (e.g. Kaitsu's Steady Aim) lets its owner target
+  // otherwise-untargetable (intangible) enemies with full effectiveness.
+  const bypassUntargetable = hasTrueStrikeMode(my[game.actor.i]);
+  const legalFoe = allFoe.filter(x => x.hp > 0 && (bypassUntargetable || !hasUntargetableMode(x)));
   switch (spec) {
     case "self":      return [ my[game.actor.i] ];
     case "ally":      return [ target ? my[target.index] : my[game.actor.i] ];
@@ -264,7 +289,7 @@ function pickTargets(game, actorRole, spec, target) {
         const pool = target.role === actorRole ? my : allFoe;
         const t = pool[target.index];
         if (!t || t.hp <= 0) return [];
-        if (pool === allFoe && hasUntargetableMode(t)) return [];
+        if (pool === allFoe && !bypassUntargetable && hasUntargetableMode(t)) return [];
         return [t];
       }
       return legalFoe.length ? [legalFoe[0]] : [];
@@ -314,10 +339,28 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
       }
       const ignore = Number(step.ignore || 0);
       const stepTargets = (step.target && resolveScopeTargets(game, actor, step.target)) || arr;
+      const mult = dmgMultOf(actor);
+      const trueStrike = hasTrueStrikeMode(actor);
       stepTargets.forEach(t => {
-        const { dmg, notes } = applyDamage(actor, t, hitWithIgnore(actor, t, base, ignore), { unguardable: !!step.unguardable });
+        // Per-target conditional bonus (e.g. Tana's Heatseeker/Infernal
+        // Outburst hitting harder against already-burned targets).
+        let b = base;
+        if (step.targetBonus && t.effects?.[step.targetBonus.effect] > 0) {
+          b += Number(step.targetBonus.amount || 0);
+        }
+        b = Math.floor(b * mult);
+        const { dmg, notes } = applyDamage(actor, t, hitWithIgnore(actor, t, b, ignore), { unguardable: !!step.unguardable, trueStrike });
         log.push(`${actor.name} attacks ${t.name} with ${skillLabel}, dealing ${dmg} damage.`, ...notes);
         if (step.clearEffect) t.effects[step.clearEffect] = 0;
+        // A guarded target (Liara's Ronin's Revenge, Ben's Warrior Instinct)
+        // triggers its protector's retaliation the moment an enemy attack
+        // lands on them, whether or not that hit actually dealt damage.
+        if (t.guard && t.guard.owner && t.guard.owner.hp > 0 && t.guard.role !== game.actor.role) {
+          const guard = t.guard;
+          t.guard = null;
+          const { dmg: retDmg, notes: retNotes } = applyDamage(guard.owner, actor, hitWithIgnore(guard.owner, actor, guard.dmg, 0), { unguardable: true });
+          log.push(`${guard.owner.name} avenges ${t.name}, dealing ${retDmg} damage to ${actor.name}.`, ...retNotes);
+        }
       });
       if (step.consumeStack) {
         actor.stacks = actor.stacks || {};
@@ -340,15 +383,22 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
         log.push(`${actor.name}'s team heals for ${amt} HP with ${skillLabel}.`);
       }
     } else if (kind === "effect") {
-      const type = step.type; // stun|bind|burn|shield|reflect|invuln
+      const type = step.type; // stun|bind|burn|shield|reflect|invuln|charm|immune
       const turns = Number(step.turns || 1);
       const scope = step.target; // optional override like heal
       // Optional proc chance (0-1); status effects without one always land,
       // matching every effect step that shipped before this field existed.
       const chance = step.chance != null ? Number(step.chance) : 1;
       const label = EFFECT_LABEL[type] || type;
+      // A target with an active Immunity (e.g. Ben's Warrior Instinct)
+      // resists incoming negative status effects entirely.
+      const NEGATIVE_STATUS = ["stun", "bind", "burn", "charm"];
       if (!scope) {
         each(t => {
+          if (NEGATIVE_STATUS.includes(type) && t.effects.immune > 0) {
+            log.push(`${t.name} is immune to status effects and resists ${label}.`);
+            return;
+          }
           if (Math.random() < chance) {
             addEffect(t, type, turns);
             log.push(`${t.name} is afflicted with ${label} (${turns}) by ${skillLabel}.`);
@@ -388,20 +438,28 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
         log.push(`${t.name} gains ${amt} SP from ${skillLabel}.`);
       });
     } else if (kind === "mode") {
-      // Sets a temporary named state on the actor (e.g. Kimura Special,
-      // Arahabaki, Intangible Flames) that other skills can key off of via
-      // `altIf`/`extraIf`/`requires.mode`, and pickTargets/upkeep can read
-      // directly (untargetable, selfDamage).
+      // Sets a temporary named state on the target (e.g. Kimura Special,
+      // Arahabaki, Intangible Flames — nearly always the caster themself,
+      // but Paul's Strategize sets one on a chosen ally instead) that other
+      // skills can key off of via `altIf`/`extraIf`/`requires.mode`, and
+      // pickTargets/upkeep/damage math can read directly (untargetable,
+      // selfDamage, dodgeChance, dmgMult, trueStrike).
       const name = step.name;
       const turns = Number(step.turns || 1);
-      actor.modes = actor.modes || {};
-      actor.modes[name] = {
-        turns,
-        selfDamage: Number(step.selfDamage || 0),
-        untargetable: !!step.untargetable,
-        dodgeChance: Number(step.dodgeChance || 0),
-      };
-      log.push(`${actor.name} activates ${skillLabel}.`);
+      const stepTargets = (step.target && resolveScopeTargets(game, actor, step.target)) || arr;
+      stepTargets.forEach(t => {
+        t.modes = t.modes || {};
+        t.modes[name] = {
+          turns,
+          selfDamage: Number(step.selfDamage || 0),
+          untargetable: !!step.untargetable,
+          dodgeChance: Number(step.dodgeChance || 0),
+          dmgMult: step.dmgMult != null ? Number(step.dmgMult) : undefined,
+          trueStrike: !!step.trueStrike,
+          extraAction: !!step.extraAction,
+        };
+        log.push(`${t.name} activates ${skillLabel}.`);
+      });
     } else if (kind === "modeClear") {
       const name = step.name;
       if (actor.modes && actor.modes[name]) {
@@ -433,6 +491,16 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
       const amt = Number(step.amount || 0);
       actor.hp = clamp(actor.hp - amt, 0, MAX_HP);
       log.push(`${actor.name} takes ${amt} recoil damage from ${skillLabel}.`);
+    } else if (kind === "guard") {
+      // Vows to avenge a target (Liara's Ronin's Revenge protecting an
+      // ally, Ben's Warrior Instinct protecting himself): the next enemy
+      // attack that lands on them triggers a retaliation strike, handled
+      // inline in the "damage" step above.
+      const dmg = Number(step.dmg || step.amount || 0);
+      each(t => {
+        t.guard = { owner: actor, role: game.actor.role, dmg };
+        log.push(`${actor.name} vows to avenge ${t.name} with ${skillLabel}.`);
+      });
     }
   }
 }
@@ -550,6 +618,11 @@ function requirementsMet(unit, game, requires) {
   if (requires.notAfterMove) {
     if (unit.comboKey === requires.notAfterMove) return false;
   }
+  // Blocks re-use while a named mode the unit itself set is still active
+  // (e.g. Ben can't recast Ki Control while its own buff is still ticking).
+  if (requires.modeZero) {
+    if (unit.modes?.[requires.modeZero]?.turns > 0) return false;
+  }
   return true;
 }
 
@@ -637,8 +710,16 @@ export function handleMove(roomId, playerRole, payload) {
 
   checkWin(game);
   if (!game.over) {
-    game.pos += 1;
-    beginTurn(game);
+    // Liara's Quick Step grants a second action within the same turn slot:
+    // if it's still active and hasn't already granted its bonus action this
+    // slot, replay this same actor instead of advancing to the next unit.
+    const bonusActive = !!(me.modes?.quickstep?.turns > 0 && me.modes.quickstep.extraAction);
+    if (bonusActive && !actor.bonusUsed && canAct(me)) {
+      actor.bonusUsed = true;
+    } else {
+      game.pos += 1;
+      beginTurn(game);
+    }
   }
 
   return { ...game };

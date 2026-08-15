@@ -172,6 +172,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
         <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
           <h2 className="text-lg font-semibold text-yellow-400 mb-3">What's New</h2>
           <ul className="text-sm text-gray-300 space-y-1.5 list-disc list-inside">
+            <li>New signature movesets for Liara, Tana, Ben, Paul, and Kaitsu — a double-acting sword-dancer with an avenging guard, a burn-punishing pyro, a Ki-fueled brawler with a berserker mode, a drone-stacking engineer, and an evasive trick-shot archer.</li>
             <li>Arisa Huang has a new custom winged-hammer icon in place of the generic 🔨.</li>
             <li>Stun now gives a 50/50 chance to act each turn instead of guaranteeing a skipped turn — watch the battle log for "powers through" vs "too stunned."</li>
             <li>Status effects, stacks, and active modes (Charmed, Creature Summon, Lightning Charge, Kimura Special, etc.) are now shown for every fighter on the battle grid, not just whoever's currently acting.</li>

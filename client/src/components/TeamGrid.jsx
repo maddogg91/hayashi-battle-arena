@@ -48,7 +48,7 @@ export default function TeamGrid({
               <div className="text-sm font-bold mt-1">{c.name}</div>
 
               {/* status effect chips */}
-              {(e.stun > 0 || e.bind > 0 || e.burn > 0 || e.shield > 0 || e.reflect > 0 || e.invuln > 0 || e.charm > 0) && (
+              {(e.stun > 0 || e.bind > 0 || e.burn > 0 || e.shield > 0 || e.reflect > 0 || e.invuln > 0 || e.charm > 0 || e.immune > 0) && (
                 <div className="flex flex-wrap gap-1 justify-center mt-1 text-[10px]">
                   {e.stun > 0 && <span className="px-1 rounded bg-red-700">Stun {e.stun}</span>}
                   {e.bind > 0 && <span className="px-1 rounded bg-pink-700">Bind {e.bind}</span>}
@@ -57,6 +57,7 @@ export default function TeamGrid({
                   {e.reflect > 0 && <span className="px-1 rounded bg-indigo-700">Reflect {e.reflect}</span>}
                   {e.invuln > 0 && <span className="px-1 rounded bg-cyan-700">Invuln {e.invuln}</span>}
                   {e.charm > 0 && <span className="px-1 rounded bg-fuchsia-700">Charmed</span>}
+                  {e.immune > 0 && <span className="px-1 rounded bg-emerald-700">Immune {e.immune}</span>}
                 </div>
               )}
 

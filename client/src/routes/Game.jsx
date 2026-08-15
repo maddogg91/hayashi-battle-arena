@@ -23,6 +23,7 @@ function meetsRequires(skill, unit, team) {
   }
   if (req.stacksZero && (unit.stacks?.[req.stacksZero] || 0) > 0) return false;
   if (req.notAfterMove && unit.comboKey === req.notAfterMove) return false;
+  if (req.modeZero && unit.modes?.[req.modeZero]?.turns > 0) return false;
   return true;
 }
 
