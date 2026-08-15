@@ -20,9 +20,9 @@ Set the `DISCORD_WEBHOOK_URL` environment variable to enable two things:
 - Every "Report a Bug" submission also posts to Discord, in addition to
   being saved to disk.
 - Clicking **Save Replay** after a match posts a recap of that match's
-  personal chat to Discord — capped at Discord's 2000-character message
-  limit, keeping the most recent messages first if the full log doesn't
-  fit (with a note on how many earlier messages were left out).
+  battle log to Discord — capped at Discord's 2000-character message
+  limit, keeping the most recent lines first if the full log doesn't fit
+  (with a note on how many earlier lines were left out).
 
 Both post to the same channel by default. To send match recaps to a
 *different* channel than bug reports, also set `DISCORD_REPLAY_WEBHOOK_URL`
@@ -48,6 +48,15 @@ channel. If both are unset, both features still work as normal (feedback
 saved to disk, replay saved to disk); Discord posting is simply skipped.
 
 ## Changelog
+
+### 2026-08-07 — Save Replay now recaps the battle log, not chat
+
+- **Fixed Save Replay's Discord recap posting the match's personal chat
+  instead of the battle log** — it now summarizes the actual combat
+  narrative (attacks, damage, status effects, who won), which is what a
+  replay recap should show. Same 2000-character cap and "keep the most
+  recent lines" truncation behavior as before, just against the right
+  data.
 
 ### 2026-08-07 — Separate Discord webhook for replay recaps
 
