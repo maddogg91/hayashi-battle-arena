@@ -34,6 +34,14 @@ is simply skipped.
 
 ## Changelog
 
+### 2026-08-07 — Turn order ties are now a coin flip
+
+- **Speed ties no longer always favor Team A** — turn order was already a
+  single queue spanning both players' units sorted by speed (not
+  team-by-team turns), but a tie in speed used to always resolve in Team
+  A's favor. Ties are now randomly ordered among the tied units — a fresh
+  coin flip every round, not a fixed outcome for the whole match.
+
 ### 2026-08-07 — New signature movesets for Star, Sai, Sendara, Kenshin, and Kairu
 
 - **Five more reworked kits**, each built around a new signature mechanic:

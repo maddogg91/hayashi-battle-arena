@@ -115,20 +115,36 @@ const STAT_LABEL = { atk: "ATK", def: "DEF", spd: "SPD", spregen: "SP Regen" };
 // --- turn order ---
 function everyone(game) { return ["A","B"].flatMap(r => game.teams[r].map((u,i)=>({role:r,i,u}))); }
 
-// Every living unit on both sides acts exactly once per round, ordered by
-// current effective speed (ties broken by team A-before-B, then roster
-// index). Speed only ever decides ordering now — it no longer gates
-// whether a unit gets to act at all.
+// Fisher-Yates, used to coin-flip units that are tied on speed rather than
+// always favoring one team or roster slot.
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Every living unit on both sides acts exactly once per round, in a single
+// queue ordered purely by current effective speed — highest first,
+// interleaving both players' units freely rather than taking turns by
+// team. Units tied on speed are randomly ordered among themselves (a fresh
+// coin flip each round, since a tie can only ever involve 2+ units, this
+// generalizes to a shuffle of the whole tied group). Speed only ever
+// decides ordering now — it no longer gates whether a unit gets to act.
 function computeRoundOrder(game) {
-  return everyone(game)
-    .filter(x => x.u.hp > 0)
-    .sort((a, b) => {
-      const spdDiff = effStats(b.u).spd - effStats(a.u).spd;
-      if (spdDiff) return spdDiff;
-      if (a.role !== b.role) return a.role === "A" ? -1 : 1;
-      return a.i - b.i;
-    })
-    .map(({ role, i }) => ({ role, i }));
+  const living = everyone(game).filter(x => x.u.hp > 0);
+  const bySpeed = new Map();
+  for (const x of living) {
+    const spd = effStats(x.u).spd;
+    if (!bySpeed.has(spd)) bySpeed.set(spd, []);
+    bySpeed.get(spd).push(x);
+  }
+  const speedsDesc = [...bySpeed.keys()].sort((a, b) => b - a);
+  const order = [];
+  for (const spd of speedsDesc) order.push(...shuffle(bySpeed.get(spd)));
+  return order.map(({ role, i }) => ({ role, i }));
 }
 function startNewRound(game) {
   game.round = (game.round || 0) + 1;
