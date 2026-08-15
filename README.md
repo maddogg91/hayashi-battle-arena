@@ -49,6 +49,14 @@ saved to disk, replay saved to disk); Discord posting is simply skipped.
 
 ## Changelog
 
+### 2026-08-15 — Custom icon for Arisa
+
+- **Arisa Huang now has a custom winged-hammer icon** instead of the
+  generic 🔨 emoji, shown everywhere character portraits appear
+  (Character Guide, team select, and the battle grid). Added support for
+  characters to use an image-based icon instead of an emoji — the other
+  24 characters are unaffected and still render their emoji as before.
+
 ### 2026-08-07 — Save Replay now recaps the battle log, not chat
 
 - **Fixed Save Replay's Discord recap posting the match's personal chat

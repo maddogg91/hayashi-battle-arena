@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { stackLabel, modeLabel } from "../utils/statusLabels";
+import CharIcon from "./CharIcon";
 
 export default function TeamGrid({
   label,
@@ -41,7 +42,9 @@ export default function TeamGrid({
                 ${dead ? "bg-gray-700" : "bg-gray-900"}
               `}
             >
-              <div className="text-3xl">{c.img}</div>
+              <div className="text-3xl flex items-center justify-center h-9">
+                <CharIcon img={c.img} alt={c.name} sizePx={32} />
+              </div>
               <div className="text-sm font-bold mt-1">{c.name}</div>
 
               {/* status effect chips */}
