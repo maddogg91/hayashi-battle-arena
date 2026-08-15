@@ -34,6 +34,20 @@ is simply skipped.
 
 ## Changelog
 
+### 2026-08-07 — Status effects and stacks now visible for every fighter
+
+- **The battle grid now shows status effects, stacks, and active modes for
+  every character on both teams**, not just whoever's currently acting.
+  Previously this info (Stun/Bind/Burn/Shield/Reflect/Invulnerable/Charmed,
+  plus stacks like Creature Summon/Chain Dance/Lightning Charge/Rock Armor
+  and modes like Kimura Special/Arahabaki/Intangible Flames/Imbue with
+  Light) only appeared for the acting unit in the moves panel — now it's
+  always visible on every portrait in both team grids, so you can track
+  what's charmed, stacked, or buffed across the whole matchup at a glance.
+  Stack/mode names also now render with proper display names (e.g.
+  "Lightning Charge" instead of the raw "lightningcharge") everywhere
+  they're shown.
+
 ### 2026-08-07 — Turn order ties are now a coin flip
 
 - **Speed ties no longer always favor Team A** — turn order was already a

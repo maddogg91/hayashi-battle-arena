@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { stackLabel, modeLabel } from "../utils/statusLabels";
 
 export default function TeamGrid({
   label,
@@ -25,6 +26,8 @@ export default function TeamGrid({
           const dead = c.hp <= 0;
           const isSel = selected === i;
           const e = c.effects || {};
+          const stacks = Object.entries(c.stacks || {}).filter(([, v]) => v > 0);
+          const modes = Object.entries(c.modes || {}).filter(([, m]) => m?.turns > 0);
           return (
             <motion.button
               key={`${c.name}-${i}`}
@@ -41,14 +44,36 @@ export default function TeamGrid({
               <div className="text-3xl">{c.img}</div>
               <div className="text-sm font-bold mt-1">{c.name}</div>
 
-              {/* status chips */}
-              <div className="flex flex-wrap gap-1 justify-center mt-1 text-[10px]">
-                {e.stun > 0 && <span className="px-1 rounded bg-red-700">Stun {e.stun}</span>}
-                {e.bind > 0 && <span className="px-1 rounded bg-pink-700">Bind {e.bind}</span>}
-                {e.burn > 0 && <span className="px-1 rounded bg-orange-700">Burn {e.burn}</span>}
-                {e.shield > 0 && <span className="px-1 rounded bg-blue-700">Shield {e.shield}</span>}
-                {e.reflect > 0 && <span className="px-1 rounded bg-indigo-700">Reflect {e.reflect}</span>}
-              </div>
+              {/* status effect chips */}
+              {(e.stun > 0 || e.bind > 0 || e.burn > 0 || e.shield > 0 || e.reflect > 0 || e.invuln > 0 || e.charm > 0) && (
+                <div className="flex flex-wrap gap-1 justify-center mt-1 text-[10px]">
+                  {e.stun > 0 && <span className="px-1 rounded bg-red-700">Stun {e.stun}</span>}
+                  {e.bind > 0 && <span className="px-1 rounded bg-pink-700">Bind {e.bind}</span>}
+                  {e.burn > 0 && <span className="px-1 rounded bg-orange-700">Burn {e.burn}</span>}
+                  {e.shield > 0 && <span className="px-1 rounded bg-blue-700">Shield {e.shield}</span>}
+                  {e.reflect > 0 && <span className="px-1 rounded bg-indigo-700">Reflect {e.reflect}</span>}
+                  {e.invuln > 0 && <span className="px-1 rounded bg-cyan-700">Invuln {e.invuln}</span>}
+                  {e.charm > 0 && <span className="px-1 rounded bg-fuchsia-700">Charmed</span>}
+                </div>
+              )}
+
+              {/* stack chips (Creature Summon, Chain Dance, Lightning Charge, Rock Armor...) */}
+              {stacks.length > 0 && (
+                <div className="flex flex-wrap gap-1 justify-center mt-1 text-[10px]">
+                  {stacks.map(([name, v]) => (
+                    <span key={name} className="px-1 rounded bg-purple-800">{stackLabel(name)} x{v}</span>
+                  ))}
+                </div>
+              )}
+
+              {/* mode chips (Kimura Special, Arahabaki, Intangible Flames...) */}
+              {modes.length > 0 && (
+                <div className="flex flex-wrap gap-1 justify-center mt-1 text-[10px]">
+                  {modes.map(([name, m]) => (
+                    <span key={name} className="px-1 rounded bg-teal-700">{modeLabel(name)} {m.turns}</span>
+                  ))}
+                </div>
+              )}
 
               <div className="mt-2 h-2 bg-gray-700 rounded">
                 <div

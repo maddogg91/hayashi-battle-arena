@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { stackLabel, modeLabel } from "../utils/statusLabels";
 
 // Hoisted out of MovesPanel: if these were defined inside the component
 // body, React would see a brand-new component type on every render (any SP
@@ -146,10 +147,10 @@ export default function MovesPanel({
         {effects.invuln > 0 && <span className="px-2 py-1 bg-cyan-700 rounded">Invulnerable {effects.invuln}</span>}
         {effects.charm > 0 && <span className="px-2 py-1 bg-pink-600 rounded">Charmed</span>}
         {Object.entries(stacks).filter(([, v]) => v > 0).map(([name, v]) => (
-          <span key={name} className="px-2 py-1 bg-purple-800 rounded capitalize">{name} x{v}</span>
+          <span key={name} className="px-2 py-1 bg-purple-800 rounded">{stackLabel(name)} x{v}</span>
         ))}
         {Object.entries(modes).filter(([, m]) => m?.turns > 0).map(([name, m]) => (
-          <span key={name} className="px-2 py-1 bg-teal-700 rounded capitalize">{name} ({m.turns})</span>
+          <span key={name} className="px-2 py-1 bg-teal-700 rounded">{modeLabel(name)} ({m.turns})</span>
         ))}
       </div>
 
