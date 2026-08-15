@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { backendUrl } from "../api/socket";
+import CharIcon from "../components/CharIcon";
 
 const needsTargetWord = (t) => {
   if (!t || t === "none") return "No target";
@@ -89,7 +90,9 @@ export default function CharacterGuide({ onBack }) {
                 onClick={() => setExpanded(isOpen ? null : char.name)}
                 className="w-full flex items-center gap-3 text-left"
               >
-                <div className="text-4xl">{char.img}</div>
+                <div className="text-4xl flex items-center justify-center h-11 w-11 shrink-0">
+                  <CharIcon img={char.img} alt={char.name} sizePx={36} />
+                </div>
                 <div className="flex-1">
                   <p className="font-bold">{char.name}</p>
                   <p className="text-xs text-gray-300">{char.type}</p>

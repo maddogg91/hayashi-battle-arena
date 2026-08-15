@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { socket, backendUrl } from "../api/socket";
+import CharIcon from "../components/CharIcon";
 
 export default function CharacterSelect({ roomId, role, onSelect, onLeave }) {
   const [pool, setPool] = useState([]);
@@ -101,7 +102,9 @@ export default function CharacterSelect({ roomId, role, onSelect, onLeave }) {
               `}
               title={char.type}
             >
-              <div className="text-4xl">{char.img}</div>
+              <div className="text-4xl flex items-center justify-center h-11">
+                <CharIcon img={char.img} alt={char.name} sizePx={36} />
+              </div>
               <p className="font-bold mt-2">{char.name}</p>
               <p className="text-xs text-gray-300 mt-1">{char.type}</p>
               <p className="text-sm text-gray-400 mt-2">

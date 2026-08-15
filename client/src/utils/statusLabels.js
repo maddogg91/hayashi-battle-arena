@@ -6,6 +6,7 @@ const STACK_LABELS = {
   chaindance: "Chain Dance",
   lightningcharge: "Lightning Charge",
   rockarmor: "Rock Armor",
+  dronestack: "Drone Stack",
 };
 
 const MODE_LABELS = {
@@ -13,6 +14,12 @@ const MODE_LABELS = {
   arahabaki: "Arahabaki",
   intangible: "Intangible Flames",
   imbuedlight: "Imbue with Light",
+  quickstep: "Quick Step",
+  kicontrol: "Ki Control",
+  fistoftheking: "Fist of the King",
+  strategize: "Strategize",
+  selfproclamation: "Self-Proclamation",
+  steadyaim: "Steady Aim",
 };
 
 export function stackLabel(name) {
