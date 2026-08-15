@@ -104,7 +104,7 @@ function applyDamage(attacker, defender, raw, opts = {}) {
   // Paul's Drone stacks): each named stack type reduces damage by a flat
   // percent per stack, distinct from (and stacked on top of) the shield
   // effect below.
-  const ARMOR_STACK_PCT = { rockarmor: 0.25, dronestack: 0.25 };
+  const ARMOR_STACK_PCT = { rockarmor: 0.25, dronestack: 0.25, creature: 0.25 };
   let armorReduction = 0;
   for (const [name, pct] of Object.entries(ARMOR_STACK_PCT)) {
     armorReduction += ((defender.stacks && defender.stacks[name]) || 0) * pct;
@@ -337,6 +337,10 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
       if (step.comboBonus) {
         base += Number(step.comboBonus.per || 0) * (actor.comboCount || 0);
       }
+      // Caps a stack/combo-scaling move's own damage ceiling (e.g. Sai's
+      // Half-moon Melee), independent of external multipliers like dmgMult
+      // applied per-target below.
+      if (step.cap != null) base = Math.min(base, Number(step.cap));
       const ignore = Number(step.ignore || 0);
       const stepTargets = (step.target && resolveScopeTargets(game, actor, step.target)) || arr;
       const mult = dmgMultOf(actor);
