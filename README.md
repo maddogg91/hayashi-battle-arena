@@ -34,6 +34,15 @@ is simply skipped.
 
 ## Changelog
 
+### 2026-08-07 — Stun is now a coin flip instead of a guaranteed skip
+
+- **Stunned characters get a 50/50 chance to act on each of their own
+  turns while stunned**, instead of automatically losing the turn for the
+  whole duration. The battle log calls out which happened each time —
+  "💪 X powers through the stun and is ready to act!" or "😵 X is too
+  stunned to act — turn skipped." Stun's duration still counts down
+  normally either way. Bind is unchanged: it's still a guaranteed skip.
+
 ### 2026-08-07 — Status effects and stacks now visible for every fighter
 
 - **The battle grid now shows status effects, stacks, and active modes for
