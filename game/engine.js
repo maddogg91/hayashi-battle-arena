@@ -359,11 +359,19 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
         // A guarded target (Liara's Ronin's Revenge, Ben's Warrior Instinct)
         // triggers its protector's retaliation the moment an enemy attack
         // lands on them, whether or not that hit actually dealt damage.
-        if (t.guard && t.guard.owner && t.guard.owner.hp > 0 && t.guard.role !== game.actor.role) {
+        // The owner is looked up by {role, index} rather than held as a
+        // direct object reference — Warrior Instinct guards its own caster,
+        // and a unit whose `guard.owner` pointed back at itself would make
+        // the game state circular (unit.guard.owner.guard === unit.guard),
+        // which crashes JSON.stringify when the server broadcasts state.
+        if (t.guard && t.guard.role !== game.actor.role) {
           const guard = t.guard;
           t.guard = null;
-          const { dmg: retDmg, notes: retNotes } = applyDamage(guard.owner, actor, hitWithIgnore(guard.owner, actor, guard.dmg, 0), { unguardable: true });
-          log.push(`${guard.owner.name} avenges ${t.name}, dealing ${retDmg} damage to ${actor.name}.`, ...retNotes);
+          const owner = game.teams[guard.ownerRole]?.[guard.ownerIndex];
+          if (owner && owner.hp > 0) {
+            const { dmg: retDmg, notes: retNotes } = applyDamage(owner, actor, hitWithIgnore(owner, actor, guard.dmg, 0), { unguardable: true });
+            log.push(`${owner.name} avenges ${t.name}, dealing ${retDmg} damage to ${actor.name}.`, ...retNotes);
+          }
         }
       });
       if (step.consumeStack) {
@@ -499,10 +507,12 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
       // Vows to avenge a target (Liara's Ronin's Revenge protecting an
       // ally, Ben's Warrior Instinct protecting himself): the next enemy
       // attack that lands on them triggers a retaliation strike, handled
-      // inline in the "damage" step above.
+      // inline in the "damage" step above. The owner is recorded as
+      // {role, index} rather than a direct object reference — see the
+      // note above the retaliation check for why.
       const dmg = Number(step.dmg || step.amount || 0);
       each(t => {
-        t.guard = { owner: actor, role: game.actor.role, dmg };
+        t.guard = { ownerRole: game.actor.role, ownerIndex: actor.index, role: game.actor.role, dmg };
         log.push(`${actor.name} vows to avenge ${t.name} with ${skillLabel}.`);
       });
     }

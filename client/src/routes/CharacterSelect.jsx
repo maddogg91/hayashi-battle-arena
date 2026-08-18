@@ -48,46 +48,47 @@ export default function CharacterSelect({ roomId, role, onSelect, onLeave }) {
   const canSelectMore = selected.length < 5;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center py-10">
+    <div className="flex flex-col items-center pb-28 sm:pb-10">
       {onLeave && (
-        <div className="w-full max-w-6xl px-6 flex justify-end mb-2">
+        <div className="w-full flex justify-end mb-3">
           <button
             onClick={onLeave}
-            className="text-xs px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300"
+            className="text-xs px-3 py-1.5 rounded-lg bg-panel-raised hover:bg-panel-line text-slate-300 border border-panel-line transition"
           >
             Return to Lobby
           </button>
         </div>
       )}
-      <h2 className="text-3xl font-bold mb-3 text-yellow-400">
-        Select Your 5 Fighters ({selected.length}/5)
+      <h2 className="font-display text-2xl sm:text-3xl font-bold text-gold-300 text-center">
+        Select Your 5 Fighters
       </h2>
-      <p className="text-sm text-gray-300 mb-6">
+      <p className="text-sm text-slate-400 mb-1">
         {role ? `You are Player ${role}` : "Assigning role..."}
       </p>
+      <p className="text-sm font-semibold text-slate-300 mb-5">{selected.length}/5 selected</p>
 
-      {loadError && <p className="text-red-400 mb-4">{loadError}</p>}
+      {loadError && <p className="text-hp-400 mb-4">{loadError}</p>}
 
-      <div className="flex items-center gap-3 mb-5">
+      <div className="flex items-center gap-2 mb-5 w-full max-w-md px-1">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by name or type..."
-          className="p-2 rounded-md text-black w-72"
+          className="flex-1 px-3.5 py-2.5 rounded-xl bg-ink-950 border border-panel-line focus:outline-none focus:border-gold-500 text-slate-100 placeholder:text-slate-500"
         />
         <button
           onClick={() => setQuery("")}
-          className="px-3 py-2 rounded-md bg-gray-700 hover:bg-gray-600"
+          className="px-3 py-2.5 rounded-xl bg-panel-raised hover:bg-panel-line text-slate-300 border border-panel-line transition"
         >
           Clear
         </button>
       </div>
 
       {!loadError && pool.length === 0 && (
-        <p className="text-gray-400 mb-6">Loading roster...</p>
+        <p className="text-slate-400 mb-6">Loading roster...</p>
       )}
 
-      <div className="grid grid-cols-5 gap-4 max-w-6xl w-full px-6">
+      <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 w-full px-1">
         {filtered.map((char) => {
           const selectedNow = isSelected(char.name);
           const disabled = !selectedNow && !canSelectMore;
@@ -96,18 +97,18 @@ export default function CharacterSelect({ roomId, role, onSelect, onLeave }) {
               key={char.name}
               onClick={() => toggleCharacter(char)}
               disabled={disabled || locked}
-              className={`border-2 rounded-xl p-4 text-center transition transform hover:scale-105
-                ${selectedNow ? "border-yellow-400 bg-gray-700" : "border-gray-600 bg-gray-800"}
-                ${disabled ? "opacity-60 cursor-not-allowed" : ""}
+              className={`panel p-3.5 sm:p-4 text-center transition active:scale-95
+                ${selectedNow ? "border-gold-400! bg-gold-500/10 shadow-lg shadow-gold-500/10" : "hover:border-panel-line/60 hover:bg-panel-raised"}
+                ${disabled ? "opacity-40 cursor-not-allowed" : ""}
               `}
               title={char.type}
             >
               <div className="text-4xl flex items-center justify-center h-11">
                 <CharIcon img={char.img} alt={char.name} sizePx={36} />
               </div>
-              <p className="font-bold mt-2">{char.name}</p>
-              <p className="text-xs text-gray-300 mt-1">{char.type}</p>
-              <p className="text-sm text-gray-400 mt-2">
+              <p className="font-display font-bold mt-2 text-slate-100">{char.name}</p>
+              <p className="text-xs text-slate-400 mt-1 line-clamp-2">{char.type}</p>
+              <p className="text-xs text-slate-300 mt-2">
                 ❤️ 100 HP ⚡ {char.spd} SPD
               </p>
             </button>
@@ -115,21 +116,27 @@ export default function CharacterSelect({ roomId, role, onSelect, onLeave }) {
         })}
       </div>
 
-      <button
-        onClick={confirmSelection}
-        disabled={selected.length !== 5 || locked}
-        className={`mt-8 px-6 py-3 rounded-lg font-bold
-          ${selected.length === 5 && !locked ? "bg-green-600 hover:bg-green-700" : "bg-gray-600 cursor-not-allowed"}
-        `}
-      >
-        {locked ? "Team Locked" : "Confirm Selection"}
-      </button>
-
-      {locked && (
-        <p className="mt-4 text-green-400 font-semibold">
-          Team locked in! Waiting for opponent...
-        </p>
-      )}
+      {/* Confirm bar: fixed to the bottom on mobile so it's always reachable
+          without scrolling past the whole roster; a normal inline button on
+          larger screens. */}
+      <div className="fixed sm:static bottom-0 left-0 right-0 sm:mt-8 z-30 px-4 py-3 sm:p-0 bg-ink-900/95 sm:bg-transparent border-t sm:border-0 border-panel-line backdrop-blur-sm sm:backdrop-blur-none flex flex-col items-center gap-2">
+        <button
+          onClick={confirmSelection}
+          disabled={selected.length !== 5 || locked}
+          className={`w-full sm:w-auto px-8 py-3 rounded-xl font-display font-bold transition
+            ${selected.length === 5 && !locked
+              ? "bg-teamA-500 hover:bg-teamA-400 text-ink-950 shadow-lg shadow-teamA-500/20"
+              : "bg-panel-line text-slate-500 cursor-not-allowed"}
+          `}
+        >
+          {locked ? "Team Locked" : "Confirm Selection"}
+        </button>
+        {locked && (
+          <p className="text-teamA-400 text-sm font-semibold">
+            Team locked in! Waiting for opponent...
+          </p>
+        )}
+      </div>
     </div>
   );
 }

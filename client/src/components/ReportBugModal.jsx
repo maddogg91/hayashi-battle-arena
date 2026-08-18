@@ -29,41 +29,41 @@ export default function ReportBugModal({ name, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-      <div className="bg-gray-900 text-white rounded-xl p-6 w-full max-w-md shadow-xl">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-bold text-yellow-400">🐛 Report an Issue</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-200 text-sm">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="panel bg-panel-raised text-slate-100 p-6 w-full max-w-md shadow-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-lg font-bold text-gold-300">🐛 Report an Issue</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-200 text-sm w-7 h-7 flex items-center justify-center rounded-full hover:bg-panel-line transition">
             ✕
           </button>
         </div>
 
         {status === "sent" ? (
           <>
-            <p className="text-sm text-green-400 mb-4">
+            <p className="text-sm text-teamA-400 mb-4">
               Thanks! Your report was sent — we'll take a look.
             </p>
             <button
               onClick={onClose}
-              className="w-full px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 font-semibold"
+              className="w-full px-4 py-2.5 rounded-xl bg-panel-line hover:bg-panel-line/70 font-semibold transition"
             >
               Close
             </button>
           </>
         ) : (
           <>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Type</label>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Type</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full mb-3 p-2 rounded bg-gray-800 border border-gray-700 text-gray-100"
+              className="w-full mb-3 px-3 py-2.5 rounded-xl bg-ink-950 border border-panel-line text-slate-100 focus:outline-none focus:border-gold-500"
             >
               <option value="bug">Bug</option>
               <option value="feedback">Feedback</option>
               <option value="suggestion">Suggestion</option>
             </select>
 
-            <label className="block text-xs font-semibold text-gray-300 mb-1">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1.5">
               What happened? Include what you were doing when it went wrong.
             </label>
             <textarea
@@ -72,11 +72,11 @@ export default function ReportBugModal({ name, onClose }) {
               maxLength={2000}
               rows={5}
               placeholder="Describe the bug or share your feedback..."
-              className="w-full mb-3 p-2 rounded bg-gray-800 border border-gray-700 text-gray-100 resize-none focus:outline-none focus:border-yellow-500"
+              className="w-full mb-3 px-3 py-2.5 rounded-xl bg-ink-950 border border-panel-line text-slate-100 resize-none focus:outline-none focus:border-gold-500 placeholder:text-slate-500"
             />
 
             {status === "error" && (
-              <p className="text-xs text-red-400 mb-3">
+              <p className="text-xs text-hp-400 mb-3">
                 Couldn't send your report. Please try again.
               </p>
             )}
@@ -84,17 +84,17 @@ export default function ReportBugModal({ name, onClose }) {
             <div className="flex gap-3">
               <button
                 onClick={onClose}
-                className="flex-1 px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 font-semibold"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-panel-line hover:bg-panel-line/70 font-semibold transition"
               >
                 Cancel
               </button>
               <button
                 onClick={submit}
                 disabled={!message.trim() || status === "sending"}
-                className={`flex-1 px-4 py-2 rounded font-semibold
+                className={`flex-1 px-4 py-2.5 rounded-xl font-semibold transition
                   ${!message.trim() || status === "sending"
-                    ? "bg-gray-600 cursor-not-allowed"
-                    : "bg-green-600 hover:bg-green-700"}
+                    ? "bg-panel-line text-slate-500 cursor-not-allowed"
+                    : "bg-teamA-500 hover:bg-teamA-400 text-ink-950"}
                 `}
               >
                 {status === "sending" ? "Sending…" : "Submit"}
