@@ -73,6 +73,21 @@ Treat it like a secret the same as the Discord webhook URLs above.
 
 ## Changelog
 
+### 2026-08-18 — Randomized cutscene stars + guild-team announcements
+
+- **Pre-battle cutscenes now pick a random fighter from each team** to
+  headline the banter, instead of always whichever fighter was drafted
+  first — the same matchup plays out differently match to match.
+- **Every fighter now has at least one line available** — added a
+  placeholder solo line for every character that didn't already have
+  specific or half-matched dialogue, and fixed a lookup bug where a
+  character's solo line only resolved if they landed on the "expected"
+  side of the matchup.
+- **Drafting a full 5-fighter team from a single guild** (AERO,
+  Celestial, Flame, Mist, or Terra) now triggers a special "{guild}
+  guild joins the battle!" narrator line at the start of the cutscene.
+  Added a `guild` column to the character roster to support this.
+
 ### 2026-08-18 — AI-generated replay recaps
 
 - **Save Replay's Discord recap can now be a real Claude-written TLDR**

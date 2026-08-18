@@ -232,6 +232,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
           </button>
           {showWhatsNew && (
             <ul className="mt-3 text-sm text-slate-300 space-y-1.5 list-disc list-inside">
+              <li>Pre-battle cutscenes now spotlight a random fighter from each team instead of always whoever was drafted first, every fighter has at least one line of their own, and drafting a full 5-fighter team from a single guild (AERO, Celestial, Flame, Mist, or Terra) triggers a special "guild joins the battle!" announcement.</li>
               <li>Fixed Ben's Warrior Instinct crashing the match after a few uses.</li>
               <li>Brand new look across the whole app — redesigned lobby, character select, guide, and battle screens with a proper responsive layout tuned for phones as well as desktop.</li>
               <li>You can now refresh the page, lose connection, or close the tab mid-match and pick right back up where you left off — your opponent sees a "reconnecting" notice instead of the match just ending.</li>

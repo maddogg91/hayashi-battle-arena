@@ -520,17 +520,27 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
 }
 
 // --- Dialogue picker from CSV ---
+// A random member of each side headlines the cutscene — not always
+// whoever was drafted first — so the pre-battle banter varies match to
+// match even between the same two rosters.
 function pickDialogue(teamA, teamB) {
-  // Use first picked of each side as the “stars”
-  const a = teamA[0]?.name;
-  const b = teamB[0]?.name;
+  const starA = teamA[Math.floor(Math.random() * teamA.length)];
+  const starB = teamB[Math.floor(Math.random() * teamB.length)];
+  const a = starA?.name;
+  const b = starB?.name;
   const key1 = `${a}|${b}`;
   const key2 = `${b}|${a}`;
 
   // Prefer the most specific dialogue available; fall back to a generic
-  // narrator intro so every matchup gets a cutscene, not just Shou vs Jett.
+  // narrator intro so every matchup gets a cutscene, not just Shou vs
+  // Jett. halfMatch checks both "Name|*" and "*|Name" for each star
+  // (not just the slot they'd naturally fill as team A/B) since a
+  // character's one authored solo line shouldn't go unused just because
+  // they landed on the other side this match.
   const specific = cache.dialogueRows.filter(r => r.pair === key1 || r.pair === key2);
-  const halfMatch = cache.dialogueRows.filter(r => r.pair === `${a}|*` || r.pair === `*|${b}`);
+  const halfMatch = cache.dialogueRows.filter(r =>
+    r.pair === `${a}|*` || r.pair === `*|${a}` || r.pair === `${b}|*` || r.pair === `*|${b}`
+  );
   const generic = cache.dialogueRows.filter(r => r.pair === "*|*");
   const rows = (specific.length ? specific : halfMatch.length ? halfMatch : generic)
     .sort((x,y)=> x.order - y.order);
@@ -541,7 +551,19 @@ function pickDialogue(teamA, teamB) {
     line: r.line,
     side: r.speaker === a ? "A" : (r.speaker === b ? "B" : "N"),
   }));
-  return seq.slice(0, 12); // keep it short
+
+  // A team drafted entirely from one guild gets a special announcement
+  // line ahead of the regular banter.
+  const announcements = [];
+  for (const [team, side] of [[teamA, "A"], [teamB, "B"]]) {
+    const guilds = new Set(team.map(u => u.guild).filter(Boolean));
+    if (team.length > 0 && guilds.size === 1) {
+      const [guild] = guilds;
+      announcements.push({ speaker: "Narrator", line: `${guild} guild joins the battle!`, side });
+    }
+  }
+
+  return [...announcements, ...seq].slice(0, 12); // keep it short
 }
 
 // --- Init from CSV ---
@@ -555,6 +577,7 @@ export function initGame(selections, roomId, names = {}) {
     return {
       name: base.name,
       type: base.type,
+      guild: base.guild || "",
       img: base.img || "🎭",
       description: base.description || "",
       index: idx,
@@ -574,6 +597,13 @@ export function initGame(selections, roomId, names = {}) {
   const teamA = hydrateTeam(selections.A);
   const teamB = hydrateTeam(selections.B);
 
+  // Resolve the cutscene against each fighter's real name — before any
+  // same-pick renaming below changes it to "Name (Player)" — so
+  // dialogue.csv lookups and guild announcements always match correctly
+  // regardless of whether both players happened to draft the same
+  // character.
+  const cutscene = pickDialogue(teamA, teamB);
+
   // If both players picked the same character, tag each with the owning
   // player's name so they're distinguishable in the UI and battle log.
   const namesA = new Set(teamA.map(u => u.name));
@@ -592,7 +622,7 @@ export function initGame(selections, roomId, names = {}) {
     round: 0,
     order: null,
     pos: 0,
-    cutscene: pickDialogue(teamA, teamB), // <— add cutscene lines here
+    cutscene,
   };
 
   beginTurn(game);
