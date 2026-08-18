@@ -1,68 +1,99 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@import "tailwindcss";
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+/* ---------------------------------------------------------------------
+   Hayashi Academy Battle Arena — design tokens.
+   A dark "night arena" palette built around the app's existing gold
+   accent, plus a display font for headings and a clean body font. Tokens
+   here become Tailwind utilities automatically (e.g. --color-ink -> bg-ink,
+   --font-display -> font-display).
+--------------------------------------------------------------------- */
+@theme {
+  --font-display: "Rajdhani", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+  /* An extra breakpoint below Tailwind's default `sm` (640px), useful for
+     letting grids like the character roster add a column a bit earlier on
+     larger phones/small tablets before `sm` kicks in. */
+  --breakpoint-xs: 30rem;
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
+  /* Base surfaces */
+  --color-ink-950: #05070f;
+  --color-ink-900: #0a0e1a;
+  --color-ink-800: #10152580;
+  --color-panel: #141a2c;
+  --color-panel-raised: #1b2238;
+  --color-panel-line: #2a3350;
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
+  /* Brand gold (accent) */
+  --color-gold-200: #fde9b8;
+  --color-gold-300: #fbd977;
+  --color-gold-400: #f6c445;
+  --color-gold-500: #eab020;
+  --color-gold-600: #c8890f;
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
+  /* Team colors */
+  --color-teamA-400: #4ade80;
+  --color-teamA-500: #22c55e;
+  --color-teamB-400: #38bdf8;
+  --color-teamB-500: #0ea5e9;
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  /* Status accents */
+  --color-hp-400: #fb7185;
+  --color-hp-500: #f43f5e;
+  --color-sp-400: #22d3ee;
+  --color-sp-500: #06b6d4;
+  --color-burn-400: #fb923c;
+  --color-danger-500: #ef4444;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+@layer base {
+  html {
+    color-scheme: dark;
   }
-  a:hover {
-    color: #747bff;
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font-body);
+    background: var(--color-ink-900);
+    color: #e7e9f5;
+    /* Faint radial glow for depth instead of a flat fill. */
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(246, 196, 69, 0.08), transparent),
+      radial-gradient(ellipse 60% 40% at 90% 100%, rgba(56, 189, 248, 0.06), transparent);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: 0.01em;
+  }
+
+  /* Comfortable default tap targets on touch devices. */
   button {
-    background-color: #f9f9f9;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-panel-line);
+    border-radius: 999px;
+  }
+}
+
+@layer components {
+  /* Shared card surface used across screens for consistency. */
+  .panel {
+    background: color-mix(in srgb, var(--color-panel) 96%, transparent);
+    border: 1px solid var(--color-panel-line);
+    border-radius: 1rem;
   }
 }

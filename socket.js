@@ -40,6 +40,13 @@ const presence = Object.create(null);
 const rid = (len = 8) => crypto.randomBytes(len).toString("hex");
 const now = () => Date.now();
 
+// How long a seat stays reserved after its socket disconnects before the
+// match is declared abandoned. Covers a page refresh, a browser crash, or a
+// brief network drop that lands outside Socket.IO's own connectionStateRecovery
+// window — the client re-establishes with a *new* socket id in all of those
+// cases, so recovery has to happen at the room/role level, not the socket level.
+const RECONNECT_GRACE_MS = 30_000;
+
 /* -------------------- Presence helpers -------------------- */
 function presenceList() {
   // Show everyone not "playing" so active matches don't clutter the lobby.
@@ -82,6 +89,9 @@ function ensureRoom(roomId) {
     cutsceneAck: { A: false, B: false },
     isPrivate: false,
     passcode: null,
+    // Timer ids for a seat currently in its reconnect grace window (see
+    // RECONNECT_GRACE_MS) — cleared the moment that role rejoins.
+    disconnectTimers: { A: null, B: null },
   };
   return rooms[roomId];
 }
@@ -90,9 +100,43 @@ function safeEmit(io, roomId, event, payload) { try { io.to(roomId).emit(event, 
 function dropFromRoom(io, roomId, role) {
   const room = rooms[roomId];
   if (!room) return;
+  clearDisconnectTimer(room, role);
   room.players[role] = "__LEFT__";
   safeEmit(io, roomId, "opponentLeft", { role });
   maybeCleanupRoom(roomId);
+}
+function clearDisconnectTimer(room, role) {
+  if (room.disconnectTimers?.[role]) {
+    clearTimeout(room.disconnectTimers[role]);
+    room.disconnectTimers[role] = null;
+  }
+}
+// A socket disconnect (network drop, tab close, page refresh) doesn't mean
+// the player is gone for good — the client reconnects with a brand-new
+// socket id, so recovery has to be tracked at the room/role level. Instead
+// of tearing the match down immediately, park the seat as __PENDING__ for
+// RECONNECT_GRACE_MS and only declare them gone (dropFromRoom) if nobody
+// rejoins that role in time. If the opponent's seat was never filled (still
+// solo-waiting), there's nobody to protect from a false "opponent left", so
+// fall back to the old immediate-drop behavior.
+function startDisconnectGrace(io, roomId, role) {
+  const room = rooms[roomId];
+  if (!room) return;
+  const other = room.players[opponentRole(role)];
+  const opponentSeated = other && other !== "__LEFT__";
+  if (!opponentSeated) {
+    dropFromRoom(io, roomId, role);
+    return;
+  }
+  room.players[role] = "__PENDING__";
+  safeEmit(io, roomId, "opponentDisconnected", { role, graceMs: RECONNECT_GRACE_MS });
+  clearDisconnectTimer(room, role);
+  room.disconnectTimers[role] = setTimeout(() => {
+    const r = rooms[roomId];
+    if (!r) return;
+    r.disconnectTimers[role] = null;
+    if (r.players[role] === "__PENDING__") dropFromRoom(io, roomId, role);
+  }, RECONNECT_GRACE_MS);
 }
 function safeLeaveQueue(socket) {
   if (inQueue.has(socket.id)) {
@@ -351,10 +395,23 @@ export function initSocket(httpServer) {
        "joinRoom" re-emit on connect) -------- */
     socket.on("joinRoom", ({ roomId, role, name } = {}) => {
       if (!roomId || !role || !["A","B"].includes(role)) return;
-      const room = ensureRoom(roomId);
+      // joinRoom only ever rebinds an EXISTING room (a brief network drop,
+      // or a client restoring a persisted session after a full page
+      // reload) — it's never used to create one from scratch, so a missing
+      // room means that match is genuinely gone (server restarted, grace
+      // window expired, opponent left). Fabricating a fresh empty room
+      // here would silently strand a rejoining player in a phantom lobby
+      // instead of telling them their match is over.
+      const room = rooms[roomId];
+      if (!room) {
+        socket.emit("rejoinFailed", { message: "That match is no longer available." });
+        return;
+      }
       safeLeaveQueue(socket);
 
       const alreadyUnderway = room.status !== "lobby";
+      const wasPending = room.players[role] === "__PENDING__";
+      clearDisconnectTimer(room, role);
 
       room.players[role] = socket.id;
       room.names[role] = (name || room.names[role] || `Player ${role}`).slice(0, 40);
@@ -362,6 +419,8 @@ export function initSocket(httpServer) {
       socket.data.role = role;
       socket.data.name = room.names[role];
       socket.join(roomId);
+
+      if (wasPending) safeEmit(io, roomId, "opponentReconnected", { role });
 
       if (alreadyUnderway) {
         // Rebind only: the match already progressed past this player's
@@ -536,7 +595,7 @@ export function initSocket(httpServer) {
       clearPresence(io, socket);
 
       if (!roomId || !role) return;
-      dropFromRoom(io, roomId, role);
+      startDisconnectGrace(io, roomId, role);
     });
   });
 

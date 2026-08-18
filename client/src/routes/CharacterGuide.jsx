@@ -39,53 +39,50 @@ export default function CharacterGuide({ onBack }) {
   }, [query, chars]);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center py-10">
-      <div className="w-full max-w-6xl px-6 flex justify-end mb-2">
+    <div className="flex flex-col items-center py-6 sm:py-10 px-4 sm:px-6">
+      <div className="w-full max-w-6xl flex justify-end mb-2">
         {onBack && (
           <button
             onClick={onBack}
-            className="text-xs px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300"
+            className="text-xs px-3 py-1.5 rounded-lg bg-panel-raised hover:bg-panel-line text-slate-300 border border-panel-line transition"
           >
             Return to Lobby
           </button>
         )}
       </div>
 
-      <h2 className="text-3xl font-bold mb-3 text-yellow-400">Character Guide</h2>
-      <p className="text-sm text-gray-300 mb-6">
+      <h2 className="font-display text-2xl sm:text-3xl font-bold mb-2 text-gold-300">Character Guide</h2>
+      <p className="text-sm text-slate-400 mb-6 text-center">
         Tap a fighter to read their profile and skills.
       </p>
 
-      {loadError && <p className="text-red-400 mb-4">{loadError}</p>}
+      {loadError && <p className="text-hp-400 mb-4">{loadError}</p>}
 
-      <div className="flex items-center gap-3 mb-5">
+      <div className="flex items-center gap-2 mb-6 w-full max-w-md">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by name or type..."
-          className="p-2 rounded-md text-black w-72"
+          className="flex-1 px-3.5 py-2.5 rounded-xl bg-ink-950 border border-panel-line focus:outline-none focus:border-gold-500 text-slate-100 placeholder:text-slate-500"
         />
         <button
           onClick={() => setQuery("")}
-          className="px-3 py-2 rounded-md bg-gray-700 hover:bg-gray-600"
+          className="px-3 py-2.5 rounded-xl bg-panel-raised hover:bg-panel-line text-slate-300 border border-panel-line transition"
         >
           Clear
         </button>
       </div>
 
       {!loadError && chars.length === 0 && (
-        <p className="text-gray-400 mb-6">Loading roster...</p>
+        <p className="text-slate-400 mb-6">Loading roster...</p>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-w-6xl w-full px-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-w-6xl w-full">
         {filtered.map((char) => {
           const isOpen = expanded === char.name;
           const skills = movesByChar[char.name] || [];
           return (
-            <div
-              key={char.name}
-              className="border-2 border-gray-700 bg-gray-800 rounded-xl p-4 text-left"
-            >
+            <div key={char.name} className="panel p-4 text-left">
               <button
                 onClick={() => setExpanded(isOpen ? null : char.name)}
                 className="w-full flex items-center gap-3 text-left"
@@ -93,32 +90,32 @@ export default function CharacterGuide({ onBack }) {
                 <div className="text-4xl flex items-center justify-center h-11 w-11 shrink-0">
                   <CharIcon img={char.img} alt={char.name} sizePx={36} />
                 </div>
-                <div className="flex-1">
-                  <p className="font-bold">{char.name}</p>
-                  <p className="text-xs text-gray-300">{char.type}</p>
-                  <p className="text-xs text-gray-400 mt-1">❤️ 100 HP ⚡ {char.spd} SPD</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-display font-bold text-slate-100">{char.name}</p>
+                  <p className="text-xs text-slate-400 truncate">{char.type}</p>
+                  <p className="text-xs text-slate-500 mt-1">❤️ 100 HP ⚡ {char.spd} SPD</p>
                 </div>
-                <span className="text-gray-400 text-sm">{isOpen ? "▲" : "▼"}</span>
+                <span className="text-slate-500 text-sm shrink-0">{isOpen ? "▲" : "▼"}</span>
               </button>
 
               {isOpen && (
-                <div className="mt-3 pt-3 border-t border-gray-700 space-y-3">
+                <div className="mt-3 pt-3 border-t border-panel-line space-y-3">
                   {char.description && (
-                    <p className="text-sm text-gray-300 italic">{char.description}</p>
+                    <p className="text-sm text-slate-300 italic">{char.description}</p>
                   )}
                   {skills.length === 0 ? (
-                    <p className="text-xs text-gray-500">No skills on file for this character.</p>
+                    <p className="text-xs text-slate-500">No skills on file for this character.</p>
                   ) : (
                     <ul className="space-y-2">
                       {skills.map((s) => (
-                        <li key={s.key} className="bg-gray-900 rounded-lg p-3">
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-yellow-400">{s.label}</span>
-                            <span className="text-xs text-gray-400">
+                        <li key={s.key} className="bg-ink-950 rounded-lg p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-gold-300">{s.label}</span>
+                            <span className="text-xs text-slate-400 shrink-0">
                               {needsTargetWord(s.target)} • {s.cost ?? 0} SP
                             </span>
                           </div>
-                          <p className="text-sm text-gray-300 mt-1">
+                          <p className="text-sm text-slate-300 mt-1">
                             {s.desc || "No description available."}
                           </p>
                         </li>
