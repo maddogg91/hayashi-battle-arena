@@ -7,6 +7,7 @@ import { initGame, handleMove, getGame } from "./game/engine.js";
 import { saveReplayToDisk } from "./replays.js";
 import { postToDiscord } from "./discord.js";
 import { buildBattleLogSummary } from "./battleLogSummary.js";
+import { summarizeBattleLogWithClaude } from "./aiBattleSummary.js";
 
 /**
  * Room shape:
@@ -345,6 +346,29 @@ function cancelPrivateMatch(io, socket) {
   }
 }
 
+/* -------------------- Replay recap -------------------- */
+// Tries a real LLM-generated TLDR of the battle log first (needs
+// ANTHROPIC_API_KEY); falls back to the plain-truncation summary on any
+// failure — missing key, rate limit, network error, empty log, etc. —
+// so a Save Replay click never fails to post *something* to Discord.
+async function postReplayRecap(room, state) {
+  const namesA = room?.names?.A || "Player A";
+  const namesB = room?.names?.B || "Player B";
+  const log = state.log || [];
+  const winnerLine = log.find((l) => l.includes("🏆")) || null;
+
+  let summary = null;
+  try {
+    summary = await summarizeBattleLogWithClaude({ namesA, namesB, log, winnerLine });
+  } catch (err) {
+    console.error("Claude battle summary failed, falling back to plain recap:", err.message);
+  }
+  if (!summary) {
+    summary = buildBattleLogSummary({ namesA, namesB, log, winnerLine });
+  }
+  await postToDiscord({ content: summary }, { webhookUrl: process.env.DISCORD_REPLAY_WEBHOOK_URL });
+}
+
 /* -------------------- Public API: init Socket.IO -------------------- */
 export function initSocket(httpServer) {
   const io = new Server(httpServer, {
@@ -513,19 +537,14 @@ export function initSocket(httpServer) {
 
       // Fire-and-forget: post a recap of this match's battle log to
       // Discord, independent of the disk save above so a slow/unreachable
-      // webhook never delays the player's confirmation. Posts to a
-      // dedicated DISCORD_REPLAY_WEBHOOK_URL if set, else falls back to
-      // the general DISCORD_WEBHOOK_URL (see postToDiscord); no-op if
-      // neither is configured.
+      // webhook (or LLM call) never delays the player's confirmation.
+      // Posts to a dedicated DISCORD_REPLAY_WEBHOOK_URL if set, else
+      // falls back to the general DISCORD_WEBHOOK_URL (see
+      // postToDiscord); no-op if neither is configured.
       const room = rooms[roomId];
-      const winnerLine = state.log?.find((l) => l.includes("🏆")) || null;
-      const summary = buildBattleLogSummary({
-        namesA: room?.names?.A || "Player A",
-        namesB: room?.names?.B || "Player B",
-        log: state.log || [],
-        winnerLine,
+      postReplayRecap(room, state).catch((err) => {
+        console.error("Replay recap failed:", err.message);
       });
-      postToDiscord({ content: summary }, { webhookUrl: process.env.DISCORD_REPLAY_WEBHOOK_URL });
     });
 
     /* -------- Chat -------- */
