@@ -20,9 +20,12 @@ Set the `DISCORD_WEBHOOK_URL` environment variable to enable two things:
 - Every "Report a Bug" submission also posts to Discord, in addition to
   being saved to disk.
 - Clicking **Save Replay** after a match posts a recap of that match's
-  battle log to Discord — capped at Discord's 2000-character message
-  limit, keeping the most recent lines first if the full log doesn't fit
-  (with a note on how many earlier lines were left out).
+  battle log to Discord. If `ANTHROPIC_API_KEY` is also set (see "Optional:
+  AI-generated replay recaps" below), the recap is a real TLDR written by
+  Claude; otherwise (or if that call fails for any reason) it falls back to
+  a plain-text recap capped at Discord's 2000-character message limit,
+  keeping the most recent lines first if the full log doesn't fit (with a
+  note on how many earlier lines were left out).
 
 Both post to the same channel by default. To send match recaps to a
 *different* channel than bug reports, also set `DISCORD_REPLAY_WEBHOOK_URL`
@@ -47,7 +50,36 @@ Treat these URLs like secrets — anyone who has one can post to that
 channel. If both are unset, both features still work as normal (feedback
 saved to disk, replay saved to disk); Discord posting is simply skipped.
 
+### Optional: AI-generated replay recaps
+
+Set the `ANTHROPIC_API_KEY` environment variable to have **Save Replay**'s
+Discord post be a real Claude-written TLDR of the match (key turning
+points, standout moves, who won and how) instead of a plain truncated
+log dump. Uses `claude-opus-5` via the official `@anthropic-ai/sdk`
+package. If the key is unset, the request fails, or the response is
+empty for any reason, it silently falls back to the plain-text recap
+described above — Save Replay never fails because of this.
+
+```bash
+# locally (.env, not committed)
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Heroku
+heroku config:set ANTHROPIC_API_KEY=sk-ant-...
+```
+
+Get a key from the [Anthropic Console](https://console.anthropic.com/).
+Treat it like a secret the same as the Discord webhook URLs above.
+
 ## Changelog
+
+### 2026-08-18 — AI-generated replay recaps
+
+- **Save Replay's Discord recap can now be a real Claude-written TLDR**
+  of the match instead of a truncated log dump — set `ANTHROPIC_API_KEY`
+  to enable it (see "Optional: AI-generated replay recaps" above). Falls
+  back to the existing plain-text recap automatically if the key is
+  unset or the request fails for any reason, so this is purely additive.
 
 ### 2026-08-15 — Custom icon for Arisa
 
