@@ -10,6 +10,10 @@ const EFFECT_CHIPS = [
   ["reflect", "Reflect", "bg-indigo-500/25 text-indigo-300"],
   ["invuln", "Invuln", "bg-sp-500/25 text-sp-400"],
   ["immune", "Immune", "bg-teamA-500/25 text-teamA-400"],
+  ["confuse", "Confused", "bg-purple-500/25 text-purple-300"],
+  ["expose", "Exposed", "bg-orange-500/25 text-orange-300"],
+  ["barrier", "Barrier", "bg-cyan-500/25 text-cyan-300"],
+  ["mirror", "Mirror", "bg-teal-500/25 text-teal-300"],
 ];
 
 export default function TeamGrid({
