@@ -7,6 +7,7 @@ const STACK_LABELS = {
   lightningcharge: "Lightning Charge",
   rockarmor: "Rock Armor",
   dronestack: "Drone Stack",
+  bomb: "Bomb Token",
 };
 
 const MODE_LABELS = {
@@ -20,6 +21,11 @@ const MODE_LABELS = {
   strategize: "Strategize",
   selfproclamation: "Self-Proclamation",
   steadyaim: "Steady Aim",
+  asukoroll: "Asuko Roll",
+  fortress: "Impenetrable Fortress",
+  hera: "Hera Takeover",
+  cover: "Mount & Cover",
+  lockon: "Lock-on",
 };
 
 export function stackLabel(name) {

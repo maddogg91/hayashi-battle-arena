@@ -26,7 +26,7 @@ let cache = loadRoster();    // { chars, movesByChar, dialogueRows }
 // --- utilities ---
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 
-function newEffects() { return { stun:0, bind:0, burn:0, shield:0, reflect:0, invuln:0, charm:0, immune:0 }; }
+function newEffects() { return { stun:0, bind:0, burn:0, shield:0, reflect:0, invuln:0, charm:0, immune:0, confuse:0, expose:0, barrier:0, mirror:0 }; }
 function addEffect(f, k, turns) { f.effects[k] = Math.max(f.effects[k], turns); }
 function tickEffects(f) {
   for (const k of Object.keys(f.effects)) if (f.effects[k] > 0) f.effects[k] -= 1;
@@ -68,6 +68,26 @@ function hasTrueStrikeMode(u) {
   const modes = u.modes || {};
   return Object.values(modes).some(m => m && m.turns > 0 && m.trueStrike);
 }
+// Multiplicative incoming-damage reduction from active modes (e.g. Soren's
+// Impenetrable Fortress). Multiple active sources stack multiplicatively,
+// same as dmgMultOf.
+function dmgReductionOf(u) {
+  const modes = u.modes || {};
+  return Object.values(modes).reduce((mult, m) => (m && m.turns > 0 && m.dmgReduction ? mult * (1 - m.dmgReduction) : mult), 1);
+}
+// Multiplicative SP-cost surcharge from active modes (e.g. Lyra's Hera
+// Takeover doubling her own SP costs while active).
+function costMultOf(u) {
+  const modes = u.modes || {};
+  return Object.values(modes).reduce((mult, m) => (m && m.turns > 0 && m.costMultiplier ? mult * m.costMultiplier : mult), 1);
+}
+// True while the attacker has a live Lock-on (Arthur) fixed on this exact
+// defender — lets that one attack bypass the defender's dodge chance.
+function isLockedOnTarget(attacker, defenderRole, defender) {
+  const lock = attacker.modes?.lockon;
+  if (!lock || lock.turns <= 0 || !lock.targetRef) return false;
+  return lock.targetRef.role === defenderRole && lock.targetRef.index === defender.index;
+}
 function statWithMods(base, mods, key) {
   return Math.max(0, base + mods.filter(m => m.stat === key).reduce((s,m)=>s+m.amount,0));
 }
@@ -85,19 +105,41 @@ function effStats(f) {
 // --- damage/resolve helpers ---
 function hitWithIgnore(attacker, defender, addBase, ignoreFrac=0) {
   const a = effStats(attacker).atk;
-  const d = Math.max(0, Math.floor(effStats(defender).def * (1 - (ignoreFrac||0))));
+  // Expose (Erika's Cutesy Magic, Star's Broken Heart) halves the
+  // defender's effective DEF before the ignore fraction is applied.
+  const defBase = defender?.effects?.expose > 0 ? Math.floor(effStats(defender).def * 0.5) : effStats(defender).def;
+  const d = Math.max(0, Math.floor(defBase * (1 - (ignoreFrac||0))));
   return Math.max(5, Math.floor(addBase + a - d));
 }
 function applyDamage(attacker, defender, raw, opts = {}) {
   let dmg = raw;
   const notes = [];
   const dodge = dodgeChanceOf(defender);
-  if (dodge > 0 && Math.random() < dodge) {
+  if (dodge > 0 && !opts.trueStrike && !opts.lockedOn && Math.random() < dodge) {
     notes.push(`${defender.name} dodges the attack!`);
     return { dmg: 0, notes };
   }
   if (defender.effects.invuln > 0 && !opts.trueStrike) {
     notes.push(`${defender.name} is invulnerable and takes no damage.`);
+    return { dmg: 0, notes };
+  }
+  // Soren's Reflect Barrier: fully negates the hit, and the defender takes
+  // 25% of the negated damage themselves instead. Consumed on the hit that
+  // triggers it (works whether or not that hit would've dealt damage).
+  if (defender.effects.barrier > 0) {
+    defender.effects.barrier = 0;
+    const selfDmg = Math.max(1, Math.floor(dmg * 0.25));
+    defender.hp = clamp(defender.hp - selfDmg, 0, MAX_HP);
+    notes.push(`${defender.name}'s barrier negates the attack and backlashes for ${selfDmg}.`);
+    return { dmg: 0, notes };
+  }
+  // Soren's Refraction Mirror: fully negates the hit and heals the
+  // defender for 25% of the negated damage instead. Consumed on trigger.
+  if (defender.effects.mirror > 0) {
+    defender.effects.mirror = 0;
+    const healAmt = Math.max(1, Math.floor(dmg * 0.25));
+    defender.hp = clamp(defender.hp + healAmt, 0, MAX_HP);
+    notes.push(`${defender.name}'s mirror negates the attack and heals for ${healAmt}.`);
     return { dmg: 0, notes };
   }
   // Persistent incoming-damage-reduction stacks (Kenshin's Rock Armor,
@@ -114,6 +156,13 @@ function applyDamage(attacker, defender, raw, opts = {}) {
     notes.push(`${defender.name}'s armor absorbs some damage (−${dmg - reduced}).`);
     dmg = reduced;
   }
+  // Mode-based incoming-damage reduction (Soren's Impenetrable Fortress).
+  const modeReduction = dmgReductionOf(defender);
+  if (modeReduction < 1) {
+    const reduced = Math.max(1, Math.floor(dmg * modeReduction));
+    notes.push(`${defender.name}'s fortress absorbs some damage (−${dmg - reduced}).`);
+    dmg = reduced;
+  }
   if (!opts.unguardable && defender.effects.shield > 0) {
     const reduced = Math.max(1, Math.floor(dmg * 0.5));
     notes.push(`${defender.name} is shielded (−${dmg - reduced}).`);
@@ -128,7 +177,7 @@ function applyDamage(attacker, defender, raw, opts = {}) {
   return { dmg, notes };
 }
 
-const EFFECT_LABEL = { stun: "Stun", bind: "Bind", burn: "Burn", shield: "a Shield", reflect: "Reflect", invuln: "Invulnerability", charm: "Charm" };
+const EFFECT_LABEL = { stun: "Stun", bind: "Bind", burn: "Burn", shield: "a Shield", reflect: "Reflect", invuln: "Invulnerability", charm: "Charm", confuse: "Confuse", expose: "Expose", barrier: "a Barrier", mirror: "a Mirror" };
 const STAT_LABEL = { atk: "ATK", def: "DEF", spd: "SPD", spregen: "SP Regen" };
 
 // --- turn order ---
@@ -244,12 +293,28 @@ function beginTurn(game) {
       stunRoll = Math.random() < 0.5;
       actionable = stunRoll;
     }
+    // Alasia's Manipulation: a confused unit has a fresh 50/50 chance each
+    // of their own turns to instead lash out at a random living ally for
+    // 15 unguardable damage rather than performing their chosen action.
+    let confusedHit = false;
+    if (actionable && unit.effects.confuse > 0) {
+      const myTeam = game.teams[role].filter(x => x !== unit && x.hp > 0);
+      if (myTeam.length > 0 && Math.random() < 0.5) {
+        confusedHit = true;
+        const victim = myTeam[Math.floor(Math.random() * myTeam.length)];
+        const { dmg, notes } = applyDamage(unit, victim, hitWithIgnore(unit, victim, 15, 0), { unguardable: true });
+        game.log.push(`😵‍💫 ${unit.name} is confused and lashes out at ${victim.name} for ${dmg} damage!`, ...notes);
+        actionable = false;
+      }
+    }
     if (actionable) {
       if (stunRoll) {
         game.log.push(`💪 ${unit.name} powers through the stun and is ready to act!`);
       } else {
         game.log.push(`🎯 ${unit.name} is ready to act.`);
       }
+    } else if (confusedHit) {
+      // logged above
     } else if (unit.effects.bind > 0) {
       game.log.push(`${unit.name} is bound and cannot act — turn skipped.`);
     } else {
@@ -259,6 +324,15 @@ function beginTurn(game) {
     // It's this unit's own turn: their personal status effects and stat
     // mods count down by one now, whether they act or are skipped.
     tickEffects(unit);
+
+    if (!actionable) {
+      // A skipped turn (stun/bind/confuse) breaks any consecutive-use combo
+      // streak the unit was building (e.g. Robert's Bully Combo requires
+      // uninterrupted turns targeting the same opponent).
+      unit.comboKey = null;
+      unit.comboCount = 0;
+      unit.comboTargetKey = null;
+    }
 
     if (actionable) {
       // `bonusUsed` tracks Liara's Quick Step: a unit with an active
@@ -283,7 +357,17 @@ function pickTargets(game, actorRole, spec, target) {
   const legalFoe = allFoe.filter(x => x.hp > 0 && (bypassUntargetable || !hasUntargetableMode(x)));
   switch (spec) {
     case "self":      return [ my[game.actor.i] ];
-    case "ally":      return [ target ? my[target.index] : my[game.actor.i] ];
+    case "ally": {
+      const self = my[game.actor.i];
+      if (!target) return [self];
+      const t = my[target.index];
+      if (!t) return [];
+      // A unit made untargetable by allies (e.g. Arthur's Setup, Mount &
+      // Cover) can't be picked as an ally-scoped target by anyone but
+      // itself.
+      if (t !== self && hasUntargetableMode(t)) return [];
+      return [t];
+    }
     case "enemy": {
       if (target) {
         const pool = target.role === actorRole ? my : allFoe;
@@ -335,16 +419,30 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
         base += Number(per || 0) * count;
       }
       if (step.comboBonus) {
-        base += Number(step.comboBonus.per || 0) * (actor.comboCount || 0);
+        if (step.comboBonus.doublePerStreak) {
+          // Robert's Bully Combo: damage doubles per consecutive same-target
+          // use instead of accumulating additively.
+          base = base * Math.pow(2, actor.comboCount || 0);
+        } else {
+          base += Number(step.comboBonus.per || 0) * (actor.comboCount || 0);
+        }
       }
       // Caps a stack/combo-scaling move's own damage ceiling (e.g. Sai's
       // Half-moon Melee), independent of external multipliers like dmgMult
       // applied per-target below.
       if (step.cap != null) base = Math.min(base, Number(step.cap));
       const ignore = Number(step.ignore || 0);
-      const stepTargets = (step.target && resolveScopeTargets(game, actor, step.target)) || arr;
+      let stepTargets = (step.target && resolveScopeTargets(game, actor, step.target)) || arr;
+      // Alasia's Detonate: only hits opponents actually carrying the named
+      // token stack, rather than hitting everyone for the hitWithIgnore
+      // damage floor of 5.
+      if (step.requiresTargetStack) {
+        const { name, min } = step.requiresTargetStack;
+        stepTargets = stepTargets.filter(t => ((t.stacks && t.stacks[name]) || 0) >= (min ?? 1));
+      }
       const mult = dmgMultOf(actor);
       const trueStrike = hasTrueStrikeMode(actor);
+      const foeRole = game.actor.role === "A" ? "B" : "A";
       stepTargets.forEach(t => {
         // Per-target conditional bonus (e.g. Tana's Heatseeker/Infernal
         // Outburst hitting harder against already-burned targets).
@@ -352,10 +450,23 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
         if (step.targetBonus && t.effects?.[step.targetBonus.effect] > 0) {
           b += Number(step.targetBonus.amount || 0);
         }
+        // Scales off the TARGET's own stack count (e.g. Alasia's Detonate:
+        // 15 damage per bomb token the target is carrying), as opposed to
+        // stackBonus above which scales off the actor's own stacks.
+        if (step.targetStackBonus) {
+          const { name, per } = step.targetStackBonus;
+          const count = (t.stacks && t.stacks[name]) || 0;
+          b += Number(per || 0) * count;
+        }
         b = Math.floor(b * mult);
-        const { dmg, notes } = applyDamage(actor, t, hitWithIgnore(actor, t, b, ignore), { unguardable: !!step.unguardable, trueStrike });
+        const lockedOn = isLockedOnTarget(actor, foeRole, t);
+        const { dmg, notes } = applyDamage(actor, t, hitWithIgnore(actor, t, b, ignore), { unguardable: !!step.unguardable, trueStrike, lockedOn });
         log.push(`${actor.name} attacks ${t.name} with ${skillLabel}, dealing ${dmg} damage.`, ...notes);
         if (step.clearEffect) t.effects[step.clearEffect] = 0;
+        if (step.consumeTargetStack) {
+          t.stacks = t.stacks || {};
+          t.stacks[step.consumeTargetStack] = 0;
+        }
         // A guarded target (Liara's Ronin's Revenge, Ben's Warrior Instinct)
         // triggers its protector's retaliation the moment an enemy attack
         // lands on them, whether or not that hit actually dealt damage.
@@ -372,6 +483,12 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
             const { dmg: retDmg, notes: retNotes } = applyDamage(owner, actor, hitWithIgnore(owner, actor, guard.dmg, 0), { unguardable: true });
             log.push(`${owner.name} avenges ${t.name}, dealing ${retDmg} damage to ${actor.name}.`, ...retNotes);
           }
+        }
+        // Robert's Asuko Roll: while active, being targeted gives him a 50%
+        // chance to counter-hit the attacker for 15 unguardable damage.
+        if (t.modes?.asukoroll?.turns > 0 && t.hp > 0 && Math.random() < 0.5) {
+          const { dmg: retDmg, notes: retNotes } = applyDamage(t, actor, hitWithIgnore(t, actor, 15, 0), { unguardable: true });
+          log.push(`${t.name} counters with Asuko Roll, dealing ${retDmg} damage to ${actor.name}.`, ...retNotes);
         }
       });
       if (step.consumeStack) {
@@ -404,9 +521,14 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
       const label = EFFECT_LABEL[type] || type;
       // A target with an active Immunity (e.g. Ben's Warrior Instinct)
       // resists incoming negative status effects entirely.
-      const NEGATIVE_STATUS = ["stun", "bind", "burn", "charm"];
+      const NEGATIVE_STATUS = ["stun", "bind", "burn", "charm", "confuse", "expose"];
+      // Alasia's Detonate: the stun chance only applies to the opponents
+      // actually carrying bomb tokens, same filter as the damage step above.
+      const effArr = step.requiresTargetStack
+        ? arr.filter(t => ((t.stacks && t.stacks[step.requiresTargetStack.name]) || 0) >= (step.requiresTargetStack.min ?? 1))
+        : arr;
       if (!scope) {
-        each(t => {
+        effArr.forEach(t => {
           if (NEGATIVE_STATUS.includes(type) && t.effects.immune > 0) {
             log.push(`${t.name} is immune to status effects and resists ${label}.`);
             return;
@@ -434,7 +556,7 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
       }
     } else if (kind === "cleanse") {
       // Removes negative status effects (not buffs like shield/reflect).
-      const NEGATIVE = ["stun", "bind", "burn"];
+      const NEGATIVE = ["stun", "bind", "burn", "charm", "confuse"];
       const stepTargets = (step.target && resolveScopeTargets(game, actor, step.target)) || arr;
       stepTargets.forEach(t => {
         const hadAny = NEGATIVE.some(k => t.effects[k] > 0);
@@ -469,6 +591,8 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
           dmgMult: step.dmgMult != null ? Number(step.dmgMult) : undefined,
           trueStrike: !!step.trueStrike,
           extraAction: !!step.extraAction,
+          dmgReduction: step.dmgReduction != null ? Number(step.dmgReduction) : undefined,
+          costMultiplier: step.costMultiplier != null ? Number(step.costMultiplier) : undefined,
         };
         log.push(`${t.name} activates ${skillLabel}.`);
       });
@@ -480,25 +604,49 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
         log.push(`${actor.name}'s ${label} mode ends.`);
       }
     } else if (kind === "stack") {
-      // Named, capped counters on the actor (e.g. Arisa's Creature Summon)
-      // that later damage steps can scale off of via `stackBonus`.
+      // Named, capped counters (e.g. Arisa's Creature Summon on herself, or
+      // Alasia's bomb tokens placed on an opponent) that later damage steps
+      // can scale off of via `stackBonus`/`targetStackBonus`. Defaults to
+      // the actor (every pre-existing usage), but a step-level `target`
+      // scope — or the move's own target resolving to an enemy — lets the
+      // stack be placed on someone else instead.
       const name = step.name;
       const amount = Number(step.amount || 1);
       const max = step.max != null ? Number(step.max) : Infinity;
-      actor.stacks = actor.stacks || {};
-      const next = clamp((actor.stacks[name] || 0) + amount, 0, max);
-      actor.stacks[name] = next;
-      log.push(`${actor.name} gains a ${skillLabel} stack (${next}${max !== Infinity ? "/" + max : ""}).`);
+      const stepTargets = (step.target && resolveScopeTargets(game, actor, step.target)) || arr;
+      stepTargets.forEach(t => {
+        t.stacks = t.stacks || {};
+        const next = clamp((t.stacks[name] || 0) + amount, 0, max);
+        t.stacks[name] = next;
+        log.push(`${t.name} gains a ${skillLabel} stack (${next}${max !== Infinity ? "/" + max : ""}).`);
+      });
     } else if (kind === "mod") {
       const { stat, amount, turns } = step;
       const amt = Number(amount || 0);
       const trn = Number(turns || 1);
+      const chance = step.chance != null ? Number(step.chance) : 1;
       const chip = { stat, amount: amt, turns: trn };
       const label = STAT_LABEL[stat] || stat;
       each(t => {
+        if (Math.random() >= chance) return;
         t.mods.push({ ...chip });
         log.push(`${t.name}'s ${label} ${amt >= 0 ? "rises" : "falls"} by ${Math.abs(amt)} (${trn}) from ${skillLabel}.`);
       });
+    } else if (kind === "lockon") {
+      // Arthur's Lock-on: the mode lives on the ACTOR (so Direct Shot can
+      // read it back), but it captures a reference to the chosen enemy so
+      // that specific target's dodge chance can be bypassed while it's
+      // active. Stored as {role, index} rather than a direct object
+      // reference to avoid a circular unit graph (see the guard-retaliation
+      // note above for why that matters).
+      const turns = Number(step.turns || 2);
+      const targetUnit = arr[0];
+      if (targetUnit) {
+        const foeRole = game.actor.role === "A" ? "B" : "A";
+        actor.modes = actor.modes || {};
+        actor.modes.lockon = { turns, targetRef: { role: foeRole, index: targetUnit.index } };
+        log.push(`${actor.name} locks on to ${targetUnit.name}.`);
+      }
     } else if (kind === "recoil") {
       const amt = Number(step.amount || 0);
       actor.hp = clamp(actor.hp - amt, 0, MAX_HP);
@@ -590,6 +738,7 @@ export function initGame(selections, roomId, names = {}) {
       modes: {},
       comboKey: null,
       comboCount: 0,
+      comboTargetKey: null,
       skills: [...moves, REST],
     };
   });
@@ -688,7 +837,8 @@ export function handleMove(roomId, playerRole, payload) {
   if (!skill) return game;
   if (!requirementsMet(me, game, skill.requires)) return game;
 
-  const cost = Number(skill.cost || 0);
+  // Lyra's Hera Takeover doubles her own SP costs for its duration.
+  const cost = Math.ceil(Number(skill.cost || 0) * costMultOf(me));
   if (me.sp < cost) return game;
 
   // Some skills change entirely while a mode is active (Jett's Kimura
@@ -699,8 +849,14 @@ export function handleMove(roomId, playerRole, payload) {
   const useExtra = !!(skill.extraIf && me.modes?.[skill.extraIf]?.turns > 0);
   const targetSpec = (useAltMode && skill.altTarget) || skill.target;
 
-  const targets = pickTargets(game, actor.role, targetSpec, target);
+  let targets = pickTargets(game, actor.role, targetSpec, target);
   if (!targets || targets.length === 0) return game;
+  // Star's Charm-shuriken: an AOE-style pick that only actually hits a
+  // random subset of the resolved targets (e.g. 2 of however many
+  // opponents are alive), reusing the same shuffle used for turn order.
+  if (skill.pickRandom && targets.length > skill.pickRandom) {
+    targets = shuffle(targets).slice(0, skill.pickRandom);
+  }
 
   // Some skills branch off the *target's* status instead of the actor's own
   // (e.g. Sai's Ball & Chain hits harder if the target is already bound).
@@ -727,13 +883,22 @@ export function handleMove(roomId, playerRole, payload) {
   // that opt in via `comboKey` build/reset a streak (e.g. Sendara's Spear
   // Chuck); any other move resets it to null, so `requires.notAfterMove`
   // and `comboBonus` both read a streak that only survives literal
-  // back-to-back uses of the same flagged move.
+  // back-to-back uses of the same flagged move. `comboSameTarget` (e.g.
+  // Robert's Bully Combo) additionally requires the same target as last
+  // time, tracked via a {role, index} key rather than a name (duplicate
+  // names get renamed post-hydration, but role+index is always stable).
+  const targetRole = targets[0] ? (game.teams.A.includes(targets[0]) ? "A" : "B") : null;
+  const targetKey = targets[0] ? `${targetRole}:${targets[0].index}` : null;
   if (skill.comboKey) {
-    me.comboCount = me.comboKey === skill.comboKey ? (me.comboCount || 0) + 1 : 0;
+    const sameMove = me.comboKey === skill.comboKey;
+    const sameTarget = !skill.comboSameTarget || me.comboTargetKey === targetKey;
+    me.comboCount = sameMove && sameTarget ? (me.comboCount || 0) + 1 : 0;
     me.comboKey = skill.comboKey;
+    me.comboTargetKey = targetKey;
   } else {
     me.comboKey = null;
     me.comboCount = 0;
+    me.comboTargetKey = null;
   }
 
   const log = [];

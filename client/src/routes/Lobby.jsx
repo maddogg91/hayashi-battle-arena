@@ -232,6 +232,8 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
           </button>
           {showWhatsNew && (
             <ul className="mt-3 text-sm text-slate-300 space-y-1.5 list-disc list-inside">
+              <li>New signature movesets for Alasia, Robert, Soren, Lyra, and Arthur — a bomb-token demolitionist, a streak-punching brawler with a counter stance, a shield/barrier/mirror-warden support, a Hera-Takeover-mode buffer/debuffer, and a lock-on marksman.</li>
+              <li>Balance pass: Jett's Warning Shot now stuns and deals piercing damage in one hit (20 dmg + 2-turn stun under Kimura Special). Erika's Cutesy Magic and Star's Broken Heart now apply Expose (−50% DEF) instead of raw DEF-ignore. Star's Charm-shuriken now hits two random opponents. Kairu's Flash Kick (60 SP), Kenshin's Elemental Barrage (70 SP), and Kaitsu's Impressive Showcase (65 SP) cost more; Tana's Infernal Outburst deals less (35 AOE, 50 vs Burn).</li>
               <li>Pre-battle cutscenes now spotlight a random fighter from each team instead of always whoever was drafted first, every fighter has at least one line of their own, and drafting a full 5-fighter team from a single guild (AERO, Celestial, Flame, Mist, or Terra) triggers a special "guild joins the battle!" announcement.</li>
               <li>Fixed Ben's Warrior Instinct crashing the match after a few uses.</li>
               <li>Brand new look across the whole app — redesigned lobby, character select, guide, and battle screens with a proper responsive layout tuned for phones as well as desktop.</li>

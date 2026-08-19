@@ -73,6 +73,37 @@ Treat it like a secret the same as the Discord webhook URLs above.
 
 ## Changelog
 
+### 2026-08-19 — New movesets for Alasia, Robert, Soren, Lyra, Arthur + balance pass
+
+- **Five new signature movesets**: Alasia Maltese (bomb tokens: place them
+  with Calculated Placement/Scatter Flashes, detonate them with Detonate
+  for scaling unguardable damage, confuse foes with Manipulation), Robert
+  Asuko (Strong Right, a 50%-chance counter-attack stance in Asuko Roll, a
+  same-target damage-doubling streak in Bully Combo, and Guard Up), Soren
+  Harutaki (Immovable Shield, a one-shot damage-negating Reflect
+  Barrier/Refraction Mirror pair, and team-wide Impenetrable Fortress),
+  Lyra (Fortunate Gift/Costly Curse speed bless/curse, Hera Takeover — a
+  double-SP-cost empowered mode — and its Bubble/Storm and Brave
+  Element/Woeful Resonance mode-swapped attacks), and Arthur Kinglion
+  (Setup Mount & Cover untargetability, Lock-on dodge-bypass targeting,
+  Direct Shot piercing damage, and Change Magazine).
+- **New engine mechanics** added to support the above: target-scoped stack
+  tokens (stacks can now live on the target instead of only the caster),
+  Confuse (a 50% chance per turn to redirect into a self-team hit instead
+  of acting), Expose (halves a target's effective DEF), Barrier/Mirror
+  (fully negate one hit and either backlash or heal for 25% of it), a
+  Lock-on action kind that bypasses dodge for one captured target,
+  mode-based team-wide damage reduction and SP-cost multipliers, and a
+  same-target damage-doubling combo variant.
+- **Balance pass**: Jett's Warning Shot now stuns *and* deals 10 piercing
+  damage in one hit (20 dmg + 2-turn stun under Kimura Special, up from
+  either/or). Erika's Cutesy Magic and Star's Broken Heart now apply
+  Expose (−50% DEF for a turn) instead of a flat DEF-ignore fraction.
+  Star's Charm-shuriken now hits two random opponents instead of one.
+  Kairu's Flash Kick (50→60 SP), Kenshin's Elemental Barrage (60→70 SP),
+  and Kaitsu's Impressive Showcase (50→65 SP) now cost more; Tana's
+  Infernal Outburst deals less (45→35 AOE, 60→50 vs Burn).
+
 ### 2026-08-18 — Randomized cutscene stars + guild-team announcements
 
 - **Pre-battle cutscenes now pick a random fighter from each team** to
