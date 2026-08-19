@@ -28,6 +28,19 @@ function meetsRequires(skill, unit, team) {
   return true;
 }
 
+// Mirrors costMultOf() in game/engine.js — some active modes surcharge the
+// unit's own SP costs (e.g. Lyra's Hera Takeover doubling hers), so the
+// client has to account for it too or a move can look affordable here and
+// then get silently rejected server-side for insufficient SP.
+function effectiveCost(skill, unit) {
+  const modes = unit.modes || {};
+  const mult = Object.values(modes).reduce(
+    (m, mode) => (mode && mode.turns > 0 && mode.costMultiplier ? m * mode.costMultiplier : m),
+    1
+  );
+  return Math.ceil((skill.cost || 0) * mult);
+}
+
 // Persisted just long enough to survive a page reload/browser relaunch —
 // {roomId, role} for whatever match is currently in progress. Written the
 // moment we're matched, cleared the moment the match is genuinely over
@@ -285,7 +298,7 @@ export default function Game() {
     if (!myUnit) return;
 
     const m = (myUnit.skills || []).find((s) => s.key === moveKey);
-    if (!m || (myUnit.sp ?? 0) < (m.cost || 0)) return;
+    if (!m || (myUnit.sp ?? 0) < effectiveCost(m, myUnit)) return;
     if (!meetsRequires(m, myUnit, game.teams?.[role] ?? [])) return;
     const needs = m?.target || "none";
     const desiredRole =

@@ -34,7 +34,7 @@ function InfoIcon({ skill, onPreview, onClearPreview }) {
   );
 }
 
-function MoveButton({ skill, isPending, isDisabled, onUse, onPreview, onClearPreview }) {
+function MoveButton({ skill, isPending, isDisabled, effectiveCost, onUse, onPreview, onClearPreview }) {
   return (
     <div className="flex items-center gap-1">
       <button
@@ -49,7 +49,7 @@ function MoveButton({ skill, isPending, isDisabled, onUse, onPreview, onClearPre
         `}
       >
         {skill.label}
-        <span className="ml-1.5 text-xs opacity-70">{skill.cost || 0} SP</span>
+        <span className="ml-1.5 text-xs opacity-70">{effectiveCost} SP</span>
       </button>
       <InfoIcon skill={skill} onPreview={onPreview} onClearPreview={onClearPreview} />
     </div>
@@ -96,7 +96,17 @@ export default function MovesPanel({
     return t;
   };
 
-  const canAfford = (skill) => sp >= (skill.cost || 0);
+  // Some active modes surcharge the unit's own SP costs (e.g. Lyra's Hera
+  // Takeover doubling hers) — mirrors costMultOf() in game/engine.js so the
+  // displayed cost and afford-check match what the server will actually
+  // charge, instead of the button looking affordable and then silently
+  // no-op'ing when the server rejects it for insufficient SP.
+  const costMult = Object.values(modes).reduce(
+    (mult, m) => (m && m.turns > 0 && m.costMultiplier ? mult * m.costMultiplier : mult),
+    1
+  );
+  const effectiveCost = (skill) => Math.ceil((skill.cost || 0) * costMult);
+  const canAfford = (skill) => sp >= effectiveCost(skill);
   // Some moves are gated behind stacks, an active mode, or having a living
   // ally (Arisa's Unleash the Beast, Maako's Flames of Reckoning, Shou's
   // Self Preservation) — mirrors requirementsMet() in game/engine.js so the
@@ -172,6 +182,7 @@ export default function MovesPanel({
             skill={s}
             isPending={pendingMove?.key === s.key}
             isDisabled={disabled(s)}
+            effectiveCost={effectiveCost(s)}
             onUse={onUse}
             onPreview={handlePreview}
             onClearPreview={handleClearPreview}
@@ -190,7 +201,7 @@ export default function MovesPanel({
               <span>
                 <span className="font-semibold text-gold-300">{activeSkill.label}</span>{" "}
                 <span className="text-slate-400">
-                  ({needsTargetWord(activeSkill.target)} • {activeSkill.cost || 0} SP)
+                  ({needsTargetWord(activeSkill.target)} • {effectiveCost(activeSkill)} SP)
                 </span>
               </span>
               {pendingMove && (
