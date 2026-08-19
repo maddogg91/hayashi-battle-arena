@@ -1,6 +1,6 @@
 name,type,guild,spd,img,description
 Arisa Huang,Creature Summoner,AERO,12,/icons/arisa-hammer.png,"AERO's maternal guild leader, wielding hammer and summons to protect her found family."
-Jett Kimura,Magical Gunner,AERO,16,🔫,"AERO's charming, guarded gunslinger learning to earn the love he chases."
+Jett Kimura,Magical Gunner,AERO,16,/icons/jett-guns.png,"AERO's charming, guarded gunslinger learning to earn the love he chases."
 Shou,Demon-possessed swordsman with magical prowess,AERO,16,👹,AERO's icy swordsman hiding a monstrous alter ego and a thawing heart.
 Maako Karsean,Fire user turns into intangible flames,AERO,16,🔥,"AERO's hot-headed flame brawler, blushing his way from bumbling suitor to protector."
 Erika Sharp,Healer uses angelic-based spells to hurt and bind enemies,AERO,10,👼,"AERO's noble-born cleric, whose naive sweetness hardens into real resilience."
@@ -10,8 +10,8 @@ Sai Ryuzaki,Uses magical chain to bind enemies and can transform chain into shar
 Kenshin,Uses elemental-based magical attacks from the sword he wields,Celestial,10,🌪️,"Celestial's formal knight-in-training, humbly working to earn his father's legacy."
 Sendara Al Vere,Spear user extremely strong and durable,Celestial,14,🔱,"Celestial's proud, disciplined spear-wielder, proving her worth after her family cast her aside."
 Liara Mitsuke,Swordswoman extremely fast ronin,Flame,18,🗡️,"Flame Guild's terse swordswoman, who protects her team through swift, silent action."
-Tana Phoenix,Fire user summon flames from the palms of her hands and other body parts,Flame,13,🔥,"Flame Guild's short-fused biker girl, guarding a fiercely loyal heart behind her bark."
-Ben Sherman,Martial artist uses ki based attacks similar to the Kaioken,Flame,14,🥋,"Flame Guild's easygoing, ki-powered martial artist and Kobayashi's warmest rival."
+Tana Phoenix,Fire user summon flames from the palms of her hands and other body parts,Flame,12,🔥,"Flame Guild's short-fused biker girl, guarding a fiercely loyal heart behind her bark."
+Ben Sherman,Martial artist uses ki based attacks similar to the Kaioken,Flame,18,🥋,"Flame Guild's easygoing, ki-powered martial artist and Kobayashi's warmest rival."
 Paul Watoski,Tech genius uses robots and machinery but physically weak,Flame,12,🤖,"Flame Guild's bullied-turned-brilliant tinkerer, proving heart can outmatch any bully."
 Kaitsu Hoshigaki,Uses magical arrows Speedy archer,Flame,18,🏹,"Flame Guild's vain, arrogant archer, hiding a lonely, homesick heart."
 Alasia Maltese,Uses ranged explosions,Mist,13,💥,"Mist Guild's razor-sharp strategist, whose manipulation slowly turns to devotion."
@@ -24,3 +24,4 @@ Hakudoshi Inoue,Tank extremely durable and packs a punch,Terra,9,🛡️,"Terra 
 Sora Lorashu,Elemental magic swordsman,Terra,14,🌈,"Terra Guild's incorrigible flirt and comic relief, secretly a loyal, big-hearted friend."
 Allie Mustang,Uses dark magic,Terra,13,🌑,"Terra Guild's deadpan dark-mage, doom-predicting yet quietly one of her guild's strongest fighters."
 Kara Higgins,Muse uses a flute to buff allies and curse enemies.,Terra,12,🎼,"Terra Guild's blind muse, turning flute and quiet insight into her guild's backbone."
+
