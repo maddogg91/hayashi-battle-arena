@@ -1,6 +1,6 @@
 name,type,spd,img,description
 Arisa Huang,Creature Summoner,12,/icons/arisa-hammer.png,"AERO's maternal guild leader, wielding hammer and summons to protect her found family."
-Jett Kimura,Magical Gunner,16,🔫,"AERO's charming, guarded gunslinger learning to earn the love he chases."
+Jett Kimura,Magical Gunner,16,/icons/jett-guns.png,"AERO's charming, guarded gunslinger learning to earn the love he chases."
 Shou,Demon-possessed swordsman with magical prowess,16,👹,AERO's icy swordsman hiding a monstrous alter ego and a thawing heart.
 Maako Karsean,Fire user turns into intangible flames,16,🔥,"AERO's hot-headed flame brawler, blushing his way from bumbling suitor to protector."
 Erika Sharp,Healer uses angelic-based spells to hurt and bind enemies,10,👼,"AERO's noble-born cleric, whose naive sweetness hardens into real resilience."
@@ -11,7 +11,7 @@ Kenshin,Uses elemental-based magical attacks from the sword he wields,10,🌪️
 Sendara Al Vere,Spear user extremely strong and durable,14,🔱,"Celestial's proud, disciplined spear-wielder, proving her worth after her family cast her aside."
 Liara Mitsuke,Swordswoman extremely fast ronin,18,🗡️,"Flame Guild's terse swordswoman, who protects her team through swift, silent action."
 Tana Phoenix,Fire user summon flames from the palms of her hands and other body parts,13,🔥,"Flame Guild's short-fused biker girl, guarding a fiercely loyal heart behind her bark."
-Ben Sherman,Martial artist uses ki based attacks similar to the Kaioken,14,🥋,"Flame Guild's easygoing, ki-powered martial artist and Kobayashi's warmest rival."
+Ben Sherman,Martial artist uses ki based attacks similar to the Kaioken,18,🥋,"Flame Guild's easygoing, ki-powered martial artist and Kobayashi's warmest rival."
 Paul Watoski,Tech genius uses robots and machinery but physically weak,12,🤖,"Flame Guild's bullied-turned-brilliant tinkerer, proving heart can outmatch any bully."
 Kaitsu Hoshigaki,Uses magical arrows Speedy archer,18,🏹,"Flame Guild's vain, arrogant archer, hiding a lonely, homesick heart."
 Alasia Maltese,Uses ranged explosions,13,💥,"Mist Guild's razor-sharp strategist, whose manipulation slowly turns to devotion."
