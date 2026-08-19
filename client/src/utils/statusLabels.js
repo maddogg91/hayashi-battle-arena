@@ -8,6 +8,8 @@ const STACK_LABELS = {
   rockarmor: "Rock Armor",
   dronestack: "Drone Stack",
   bomb: "Bomb Token",
+  chi: "Chi Token",
+  spite: "Spite Token",
 };
 
 const MODE_LABELS = {
@@ -26,6 +28,13 @@ const MODE_LABELS = {
   hera: "Hera Takeover",
   cover: "Mount & Cover",
   lockon: "Lock-on",
+  falsebravado: "False Bravado",
+  waverunner: "Wave Runner",
+  darkshroud: "Dark Shroud",
+  songofhope: "Song of Hope",
+  tempo: "Tempo of Victory",
+  disrupted: "Disrupting Symphony",
+  toughbody: "Tough Body",
 };
 
 export function stackLabel(name) {

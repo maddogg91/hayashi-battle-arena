@@ -45,6 +45,8 @@ export default function TeamGrid({
           const modes = Object.entries(c.modes || {}).filter(([, m]) => m?.turns > 0);
           const activeEffects = EFFECT_CHIPS.filter(([k]) => e[k] > 0);
           const charmed = e.charm > 0;
+          const taunted = c.taunt && c.taunt.turns > 0;
+          const pranked = c.disabledSkill && c.disabledSkill.turns > 0;
           return (
             <motion.button
               key={`${c.name}-${i}`}
@@ -63,12 +65,14 @@ export default function TeamGrid({
               </div>
               <div className="text-[9px] sm:text-xs font-display font-bold mt-1 leading-tight line-clamp-2 text-slate-100">{c.name}</div>
 
-              {(activeEffects.length > 0 || charmed) && (
+              {(activeEffects.length > 0 || charmed || taunted || pranked) && (
                 <div className="hidden sm:flex flex-wrap gap-1 justify-center mt-1 text-[10px]">
                   {activeEffects.map(([k, label, cls]) => (
                     <span key={k} className={`px-1 rounded ${cls}`}>{label} {e[k]}</span>
                   ))}
                   {charmed && <span className="px-1 rounded bg-pink-500/25 text-pink-300">Charmed</span>}
+                  {taunted && <span className="px-1 rounded bg-red-500/25 text-red-300">Taunted</span>}
+                  {pranked && <span className="px-1 rounded bg-fuchsia-500/25 text-fuchsia-300">{c.disabledSkill.label} Disabled</span>}
                 </div>
               )}
 
@@ -89,10 +93,12 @@ export default function TeamGrid({
               )}
 
               {/* Compact dot indicator on mobile so status is at least visible without the labels taking over the tiny card. */}
-              {(activeEffects.length > 0 || charmed || stacks.length > 0 || modes.length > 0) && (
+              {(activeEffects.length > 0 || charmed || taunted || pranked || stacks.length > 0 || modes.length > 0) && (
                 <div className="flex sm:hidden justify-center gap-0.5 mt-1">
                   {activeEffects.map(([k]) => <span key={k} className="h-1.5 w-1.5 rounded-full bg-hp-400" />)}
                   {charmed && <span className="h-1.5 w-1.5 rounded-full bg-pink-400" />}
+                  {taunted && <span className="h-1.5 w-1.5 rounded-full bg-red-400" />}
+                  {pranked && <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-400" />}
                   {stacks.length > 0 && <span className="h-1.5 w-1.5 rounded-full bg-gold-400" />}
                   {modes.length > 0 && <span className="h-1.5 w-1.5 rounded-full bg-teamB-400" />}
                 </div>

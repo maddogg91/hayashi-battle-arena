@@ -299,6 +299,8 @@ export default function Game() {
 
     const m = (myUnit.skills || []).find((s) => s.key === moveKey);
     if (!m || (myUnit.sp ?? 0) < effectiveCost(m, myUnit)) return;
+    // Allie's Prank: mirrors the server-side block in handleMove().
+    if (myUnit.disabledSkill?.turns > 0 && myUnit.disabledSkill.key === moveKey) return;
     if (!meetsRequires(m, myUnit, game.teams?.[role] ?? [])) return;
     const needs = m?.target || "none";
     const desiredRole =
