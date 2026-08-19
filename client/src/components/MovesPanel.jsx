@@ -153,6 +153,10 @@ export default function MovesPanel({
         {effects.invuln > 0 && <span className="px-2.5 py-1 bg-sp-500/20 text-sp-400 rounded-full">Invulnerable {effects.invuln}</span>}
         {effects.charm > 0 && <span className="px-2.5 py-1 bg-pink-500/20 text-pink-300 rounded-full">Charmed</span>}
         {effects.immune > 0 && <span className="px-2.5 py-1 bg-teamA-500/20 text-teamA-400 rounded-full">Immune {effects.immune}</span>}
+        {effects.confuse > 0 && <span className="px-2.5 py-1 bg-purple-500/20 text-purple-300 rounded-full">Confused {effects.confuse}</span>}
+        {effects.expose > 0 && <span className="px-2.5 py-1 bg-orange-500/20 text-orange-300 rounded-full">Exposed {effects.expose}</span>}
+        {effects.barrier > 0 && <span className="px-2.5 py-1 bg-cyan-500/20 text-cyan-300 rounded-full">Barrier {effects.barrier}</span>}
+        {effects.mirror > 0 && <span className="px-2.5 py-1 bg-teal-500/20 text-teal-300 rounded-full">Mirror {effects.mirror}</span>}
         {Object.entries(stacks).filter(([, v]) => v > 0).map(([name, v]) => (
           <span key={name} className="px-2.5 py-1 bg-gold-500/20 text-gold-300 rounded-full">{stackLabel(name)} x{v}</span>
         ))}

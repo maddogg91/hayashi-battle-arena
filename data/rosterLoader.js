@@ -13,6 +13,7 @@ export function loadRoster() {
   const chars = loadCSV("characters.csv").map((r) => ({
     name: r.name,
     type: r.type,
+    guild: r.guild || "",
     spd: Number(r.spd),
     img: r.img || "🎭",
     description: r.description || "",
