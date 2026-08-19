@@ -73,6 +73,34 @@ Treat it like a secret the same as the Discord webhook URLs above.
 
 ## Changelog
 
+### 2026-08-19 — New movesets for Kobayashi, Sora, Allie, Kara, Hakudoshi + How to Play
+
+- **Five new signature movesets** completing the Terra guild: Kobayashi
+  (Chi Gather stacks a token that grants HP/SP regen but +25% incoming
+  damage per stack; Empty Force Blast spends them for scaling damage;
+  Meditate cleanses and grants SP but can't be chained), Sora Lorashu
+  (False Bravado trades 50% less damage for +2 SPD steps and SP regen;
+  Wind Cutter can strip a stack from its target; Wave Runner; Thor's
+  Judgement), Allie Mustang (Spite stacks a token that auto-retaliates
+  and curses whoever attacks her; Dark Pulse; Dark Shroud; Prank randomly
+  disables one of a target's skills for a turn), Kara Higgins (Song of
+  Hope heals + grants SP at the start of each ally's own turn for 3
+  turns; Tempo of Victory; Refreshing Melody; Disrupting Symphony curses
+  and weakens opponents' own damage output), and Hakudoshi Inoue (Taunt
+  forces a single target's next attack onto him; Tough Body; Chow-down's
+  self-heal/SP-gain scales up the more turns in a row it's used; Wallop
+  Opponent).
+- **New engine mechanics**: incoming-damage vulnerability stacks (the
+  mirror of the existing armor-reduction stacks), per-stack and
+  per-mode HP/SP regen at the start of a unit's own turn, a generic
+  "strip one stack from the target" action, a passive stack-consuming
+  retaliation (Allie's Spite), a skill-disable mechanic (with matching
+  client-side gating so a disabled move greys out instead of silently
+  failing), and a forced-single-target redirect (Hakudoshi's Taunt,
+  which AOE moves ignore by design).
+- **New How to Play section** in the lobby — match flow, turn order, the
+  SP economy, targeting, and a full status-effect glossary in one place.
+
 ### 2026-08-19 — New movesets for Alasia, Robert, Soren, Lyra, Arthur + balance pass
 
 - **Five new signature movesets**: Alasia Maltese (bomb tokens: place them

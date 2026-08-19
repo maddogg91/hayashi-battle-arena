@@ -34,12 +34,13 @@ function InfoIcon({ skill, onPreview, onClearPreview }) {
   );
 }
 
-function MoveButton({ skill, isPending, isDisabled, effectiveCost, onUse, onPreview, onClearPreview }) {
+function MoveButton({ skill, isPending, isDisabled, isPranked, effectiveCost, onUse, onPreview, onClearPreview }) {
   return (
     <div className="flex items-center gap-1">
       <button
         onClick={() => onUse(skill.key)}
         disabled={isDisabled}
+        title={isPranked ? "Disabled this turn by Prank" : undefined}
         className={`px-3.5 py-2.5 rounded-xl text-sm font-semibold transition
           ${isDisabled
             ? "bg-panel-line/60 text-slate-500 cursor-not-allowed"
@@ -49,7 +50,7 @@ function MoveButton({ skill, isPending, isDisabled, effectiveCost, onUse, onPrev
         `}
       >
         {skill.label}
-        <span className="ml-1.5 text-xs opacity-70">{effectiveCost} SP</span>
+        <span className="ml-1.5 text-xs opacity-70">{isPranked ? "Disabled" : `${effectiveCost} SP`}</span>
       </button>
       <InfoIcon skill={skill} onPreview={onPreview} onClearPreview={onClearPreview} />
     </div>
@@ -125,9 +126,14 @@ export default function MovesPanel({
     if (req.modeZero && modes[req.modeZero]?.turns > 0) return false;
     return true;
   };
+  // Allie's Prank: locks out one specific skill for the target's next
+  // action. Mirrors the server-side check in handleMove() so the disabled
+  // button greys out instead of silently no-op'ing on click.
+  const disabledByPrank = myUnit.disabledSkill?.turns > 0 ? myUnit.disabledSkill.key : null;
   const disabled = (skill) => {
     if (cannotAct) return true;
     if (!canAfford(skill)) return true;
+    if (skill.key === disabledByPrank) return true;
     return !meetsRequires(skill);
   };
 
@@ -167,6 +173,8 @@ export default function MovesPanel({
         {effects.expose > 0 && <span className="px-2.5 py-1 bg-orange-500/20 text-orange-300 rounded-full">Exposed {effects.expose}</span>}
         {effects.barrier > 0 && <span className="px-2.5 py-1 bg-cyan-500/20 text-cyan-300 rounded-full">Barrier {effects.barrier}</span>}
         {effects.mirror > 0 && <span className="px-2.5 py-1 bg-teal-500/20 text-teal-300 rounded-full">Mirror {effects.mirror}</span>}
+        {myUnit.taunt?.turns > 0 && <span className="px-2.5 py-1 bg-red-500/20 text-red-300 rounded-full">Taunted</span>}
+        {myUnit.disabledSkill?.turns > 0 && <span className="px-2.5 py-1 bg-fuchsia-500/20 text-fuchsia-300 rounded-full">{myUnit.disabledSkill.label} Disabled</span>}
         {Object.entries(stacks).filter(([, v]) => v > 0).map(([name, v]) => (
           <span key={name} className="px-2.5 py-1 bg-gold-500/20 text-gold-300 rounded-full">{stackLabel(name)} x{v}</span>
         ))}
@@ -182,6 +190,7 @@ export default function MovesPanel({
             skill={s}
             isPending={pendingMove?.key === s.key}
             isDisabled={disabled(s)}
+            isPranked={s.key === disabledByPrank}
             effectiveCost={effectiveCost(s)}
             onUse={onUse}
             onPreview={handlePreview}

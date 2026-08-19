@@ -41,6 +41,14 @@ function tickEffects(f) {
       if (m.turns <= 0) delete f.modes[name];
     }
   }
+  // Deliberately NOT ticked here: Allie's Prank (disabledSkill) and
+  // Hakudoshi's Taunt are "lasts until your next real action" one-shot
+  // flags, not turn-counters. tickEffects() runs during beginTurn(), before
+  // the player has actually submitted that action via handleMove() — so
+  // decrementing/clearing them here would wipe them out before pickTargets
+  // and the skill-lookup in handleMove ever get a chance to see them still
+  // active. They're cleared explicitly in handleMove() once the unit's
+  // action actually resolves instead.
 }
 // A unit with an active mode flagged `untargetable` (e.g. Maako's
 // Intangible Flames) can't be selected as an enemy target.
@@ -142,6 +150,20 @@ function applyDamage(attacker, defender, raw, opts = {}) {
     notes.push(`${defender.name}'s mirror negates the attack and heals for ${healAmt}.`);
     return { dmg: 0, notes };
   }
+  // Persistent incoming-damage-VULNERABILITY stacks (Kobayashi's Chi
+  // Gather): each named stack type increases damage by a flat percent per
+  // stack, the mirror image of the armor-reduction stacks below. Applied
+  // first so armor reductions still act on the true, already-amplified hit.
+  const VULN_STACK_PCT = { chi: 0.25 };
+  let vulnAmp = 0;
+  for (const [name, pct] of Object.entries(VULN_STACK_PCT)) {
+    vulnAmp += ((defender.stacks && defender.stacks[name]) || 0) * pct;
+  }
+  if (vulnAmp > 0) {
+    const amplified = Math.ceil(dmg * (1 + vulnAmp));
+    notes.push(`${defender.name}'s vulnerability amplifies the hit (+${amplified - dmg}).`);
+    dmg = amplified;
+  }
   // Persistent incoming-damage-reduction stacks (Kenshin's Rock Armor,
   // Paul's Drone stacks): each named stack type reduces damage by a flat
   // percent per stack, distinct from (and stacked on top of) the shield
@@ -242,13 +264,36 @@ function startTurnUpkeep(u, game) {
     game.log.push(`${u.name} suffers ${burnDmg} burn damage.`);
   }
   // Modes like Shou's Arahabaki carry a self-damage-per-turn cost for as
-  // long as they're active.
+  // long as they're active. Kara's Song of Hope is the positive mirror: a
+  // mode that heals HP and/or grants SP at the start of each of the
+  // affected unit's own turns instead.
   if (u.modes) {
     for (const [name, m] of Object.entries(u.modes)) {
-      if (m && m.turns > 0 && m.selfDamage > 0) {
+      if (!m || m.turns <= 0) continue;
+      if (m.selfDamage > 0) {
         u.hp = clamp(u.hp - m.selfDamage, 0, MAX_HP);
         const label = name.charAt(0).toUpperCase() + name.slice(1);
         game.log.push(`${u.name} takes ${m.selfDamage} damage from ${label}.`);
+      }
+      if (m.hotHeal > 0 || m.hotSp > 0) {
+        if (m.hotHeal > 0) u.hp = clamp(u.hp + m.hotHeal, 0, MAX_HP);
+        if (m.hotSp > 0) u.sp = clamp(u.sp + m.hotSp, 0, MAX_SP);
+        const label = name.charAt(0).toUpperCase() + name.slice(1);
+        game.log.push(`${u.name} gains ${m.hotHeal || 0} HP and ${m.hotSp || 0} SP from ${label}.`);
+      }
+    }
+  }
+  // Kobayashi's Chi Gather: each Chi token grants +10 HP and +10 SP at the
+  // start of every one of his own turns, alongside the incoming-damage
+  // vulnerability it also carries (applied in applyDamage).
+  const STACK_REGEN = { chi: { hp: 10, sp: 10 } };
+  if (u.stacks) {
+    for (const [name, regen] of Object.entries(STACK_REGEN)) {
+      const count = u.stacks[name] || 0;
+      if (count > 0) {
+        u.hp = clamp(u.hp + regen.hp * count, 0, MAX_HP);
+        u.sp = clamp(u.sp + regen.sp * count, 0, MAX_SP);
+        game.log.push(`${u.name} gains ${regen.hp * count} HP and ${regen.sp * count} SP from ${count} Chi token(s).`);
       }
     }
   }
@@ -369,6 +414,16 @@ function pickTargets(game, actorRole, spec, target) {
       return [t];
     }
     case "enemy": {
+      // Hakudoshi's Taunt: while active, this unit's single-target enemy
+      // moves are forced onto the taunt's owner instead of whatever was
+      // actually requested (AOE scopes below are untouched by design).
+      const actorUnit = my[game.actor.i];
+      if (actorUnit.taunt) {
+        const owner = game.teams[actorUnit.taunt.ownerRole]?.[actorUnit.taunt.ownerIndex];
+        if (owner && owner.hp > 0 && (bypassUntargetable || !hasUntargetableMode(owner))) {
+          return [owner];
+        }
+      }
       if (target) {
         const pool = target.role === actorRole ? my : allFoe;
         const t = pool[target.index];
@@ -490,13 +545,27 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
           const { dmg: retDmg, notes: retNotes } = applyDamage(t, actor, hitWithIgnore(t, actor, 15, 0), { unguardable: true });
           log.push(`${t.name} counters with Asuko Roll, dealing ${retDmg} damage to ${actor.name}.`, ...retNotes);
         }
+        // Allie's Spite: every Spite token she's carrying when she's
+        // targeted consumes on the spot, dealing 10 unguardable damage per
+        // token to the attacker and cursing them (-1 SPD step) for 2 turns.
+        const spiteCount = (t.stacks && t.stacks.spite) || 0;
+        if (spiteCount > 0 && t.hp > 0) {
+          t.stacks.spite = 0;
+          const spiteDmg = spiteCount * 10;
+          const { dmg: retDmg, notes: retNotes } = applyDamage(t, actor, hitWithIgnore(t, actor, spiteDmg, 0), { unguardable: true });
+          actor.mods.push({ stat: "spd", amount: -2, turns: 2 });
+          log.push(`${t.name}'s Spite lashes out at ${actor.name} for ${retDmg} damage and curses them.`, ...retNotes);
+        }
       });
       if (step.consumeStack) {
         actor.stacks = actor.stacks || {};
         actor.stacks[step.consumeStack] = 0;
       }
     } else if (kind === "heal") {
-      const amt = Number(step.amount || 0);
+      // Hakudoshi's Chow-down: the heal amount can scale with the same
+      // consecutive-same-move comboCount tracking damage steps already use.
+      let amt = Number(step.amount || 0);
+      if (step.comboBonus) amt += Number(step.comboBonus.per || 0) * (actor.comboCount || 0);
       const scope = step.target || "self";
       if (scope === "self") {
         actor.hp = clamp(actor.hp + amt, 0, MAX_HP);
@@ -564,12 +633,48 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
         if (hadAny) log.push(`${t.name}'s negative status effects are cleansed by ${skillLabel}.`);
       });
     } else if (kind === "spgain") {
-      const amt = Number(step.amount || 0);
+      let amt = Number(step.amount || 0);
+      if (step.comboBonus) amt += Number(step.comboBonus.per || 0) * (actor.comboCount || 0);
       const stepTargets = (step.target && resolveScopeTargets(game, actor, step.target)) || arr;
       stepTargets.forEach(t => {
         if (t.hp <= 0) return;
         t.sp = clamp(t.sp + amt, 0, MAX_SP);
         log.push(`${t.name} gains ${amt} SP from ${skillLabel}.`);
+      });
+    } else if (kind === "stackdrain") {
+      // Sora's Wind Cutter: a chance to strip one stack of whatever the
+      // target happens to be carrying (bomb tokens, Chi, Spite, ...) —
+      // generic by design since it isn't tied to any one stack name.
+      const chance = step.chance != null ? Number(step.chance) : 1;
+      arr.forEach(t => {
+        if (Math.random() >= chance) return;
+        const entry = Object.entries(t.stacks || {}).find(([, v]) => v > 0);
+        if (entry) {
+          const [name, v] = entry;
+          t.stacks[name] = v - 1;
+          log.push(`${skillLabel} strips a ${name} stack from ${t.name} (${v - 1} left).`);
+        }
+      });
+    } else if (kind === "disableskill") {
+      // Allie's Prank: locks the target out of one random real skill of
+      // theirs (never the universal Rest fallback) for their next turn.
+      const turns = Number(step.turns || 1);
+      arr.forEach(t => {
+        const real = (t.skills || []).filter(s => s.key !== "rest");
+        if (!real.length) return;
+        const pick = real[Math.floor(Math.random() * real.length)];
+        t.disabledSkill = { key: pick.key, label: pick.label, turns };
+        log.push(`${t.name}'s ${pick.label} is disabled by ${skillLabel}.`);
+      });
+    } else if (kind === "taunt") {
+      // Hakudoshi's Taunt: the chosen opponent can only single-target
+      // Hakudoshi with their next real action (AOE moves are unaffected —
+      // see the "enemy" case override in pickTargets).
+      const turns = Number(step.turns || 1);
+      const ownerRole = game.actor.role;
+      arr.forEach(t => {
+        t.taunt = { ownerRole, ownerIndex: actor.index, turns };
+        log.push(`${t.name} is taunted by ${skillLabel} and can only target ${actor.name} next.`);
       });
     } else if (kind === "mode") {
       // Sets a temporary named state on the target (e.g. Kimura Special,
@@ -593,6 +698,8 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
           extraAction: !!step.extraAction,
           dmgReduction: step.dmgReduction != null ? Number(step.dmgReduction) : undefined,
           costMultiplier: step.costMultiplier != null ? Number(step.costMultiplier) : undefined,
+          hotHeal: step.hotHeal != null ? Number(step.hotHeal) : undefined,
+          hotSp: step.hotSp != null ? Number(step.hotSp) : undefined,
         };
         log.push(`${t.name} activates ${skillLabel}.`);
       });
@@ -739,6 +846,8 @@ export function initGame(selections, roomId, names = {}) {
       comboKey: null,
       comboCount: 0,
       comboTargetKey: null,
+      disabledSkill: null,
+      taunt: null,
       skills: [...moves, REST],
     };
   });
@@ -835,6 +944,8 @@ export function handleMove(roomId, playerRole, payload) {
   const { move, target } = typeof payload === "string" ? { move: payload, target: null } : payload;
   const skill = (me.skills || []).find(s => s.key === move);
   if (!skill) return game;
+  // Allie's Prank: the move it disabled can't be used for this one action.
+  if (me.disabledSkill && me.disabledSkill.turns > 0 && me.disabledSkill.key === move) return game;
   if (!requirementsMet(me, game, skill.requires)) return game;
 
   // Lyra's Hera Takeover doubles her own SP costs for its duration.
@@ -909,6 +1020,12 @@ export function handleMove(roomId, playerRole, payload) {
     me.stacks = me.stacks || {};
     for (const name of skill.clearStacksAfter) me.stacks[name] = 0;
   }
+
+  // Allie's Prank and Hakudoshi's Taunt both only restrict "your next
+  // action" — now that this unit's action has actually resolved, clear
+  // them regardless of which move was used.
+  me.disabledSkill = null;
+  me.taunt = null;
 
   game.log.push(...log);
 

@@ -17,6 +17,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
   const [waitingCode, setWaitingCode] = useState("");
   const [showReportModal, setShowReportModal] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
 
   // Load saved name + announce presence if we already have one
   useEffect(() => {
@@ -224,6 +225,98 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
 
         <div className="panel p-5 sm:p-6">
           <button
+            onClick={() => setShowHowToPlay((v) => !v)}
+            className="w-full flex items-center justify-between font-display text-lg font-bold text-gold-300"
+          >
+            How to Play
+            <span className="text-slate-400 text-sm font-body">{showHowToPlay ? "Hide ▲" : "Show ▼"}</span>
+          </button>
+          {showHowToPlay && (
+            <div className="mt-3 text-sm text-slate-300 space-y-4">
+              <div>
+                <div className="font-display font-bold text-slate-100 mb-1">The flow of a match</div>
+                <p>
+                  Draft a team of 5 fighters from the roster, then sit through a short
+                  pre-battle cutscene before the fight begins. Battle is 5v5 — last
+                  team with a living fighter wins.
+                </p>
+              </div>
+              <div>
+                <div className="font-display font-bold text-slate-100 mb-1">Turn order</div>
+                <p>
+                  Every living fighter on both sides acts once per round, fastest
+                  Speed first, interleaved freely between teams (not "your team,
+                  then theirs"). Ties are a coin flip, reshuffled every round. A
+                  fighter with low Speed still always gets a turn each round — Speed
+                  only decides <em>when</em>, not <em>if</em>.
+                </p>
+              </div>
+              <div>
+                <div className="font-display font-bold text-slate-100 mb-1">HP &amp; SP</div>
+                <p>
+                  Everyone starts at a flat 100 HP and 25 SP (max 100). Skills cost
+                  SP instead of using cooldowns — check the number on each move
+                  button, and tap the ⓘ next to any move to read exactly what it
+                  does. Every resolved action grants +5 SP to <em>everyone</em>{" "}
+                  still standing on either side. Can't afford anything yet? Rest
+                  costs 0 SP and grants an extra +10 on top of that +5, so you're
+                  never stuck with no legal move.
+                </p>
+              </div>
+              <div>
+                <div className="font-display font-bold text-slate-100 mb-1">Targeting</div>
+                <p>
+                  Pick a move first, then tap the highlighted portrait(s) it needs
+                  a target from — yourself, an ally, or an opponent — and hit
+                  Confirm to lock it in. Nothing happens until you actually
+                  confirm, so lining up the wrong target is never a mistake you
+                  can't undo. AOE moves need no target at all.
+                </p>
+              </div>
+              <div>
+                <div className="font-display font-bold text-slate-100 mb-1">Status effects</div>
+                <p className="text-slate-300">
+                  <strong className="text-slate-100">Stun</strong> — 50/50 chance
+                  to lose your turn each turn it's active.{" "}
+                  <strong className="text-slate-100">Bind</strong> — guaranteed to
+                  lose your turn.{" "}
+                  <strong className="text-slate-100">Burn</strong> — damage at the
+                  start of your turn.{" "}
+                  <strong className="text-slate-100">Shield</strong> — 50% less
+                  damage taken.{" "}
+                  <strong className="text-slate-100">Reflect</strong> — bounces
+                  half of incoming damage back at the attacker.{" "}
+                  <strong className="text-slate-100">Invulnerable</strong> — takes
+                  no damage at all.{" "}
+                  <strong className="text-slate-100">Charmed</strong> — marks a
+                  target for charm-punishing moves.{" "}
+                  <strong className="text-slate-100">Confused</strong> — a chance
+                  each turn to strike your own random ally instead of acting.{" "}
+                  <strong className="text-slate-100">Exposed</strong> — takes more
+                  damage from a halved effective DEF.{" "}
+                  <strong className="text-slate-100">Barrier</strong> — the next
+                  hit is fully negated and backlashes the attacker.{" "}
+                  <strong className="text-slate-100">Mirror</strong> — the next
+                  hit is fully negated and heals the defender instead.
+                </p>
+              </div>
+              <div>
+                <div className="font-display font-bold text-slate-100 mb-1">Stacks &amp; modes</div>
+                <p>
+                  Many fighters build up named stacks (like bomb tokens or Chi) or
+                  activate timed modes (like Kimura Special or Hera Takeover) that
+                  change how their other moves behave. These show up as chips
+                  under a fighter's portrait and countdown timers on their move
+                  descriptions — when in doubt, the ⓘ icon on each move always has
+                  the current, exact numbers.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="panel p-5 sm:p-6">
+          <button
             onClick={() => setShowWhatsNew((v) => !v)}
             className="w-full flex items-center justify-between font-display text-lg font-bold text-gold-300"
           >
@@ -232,6 +325,8 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
           </button>
           {showWhatsNew && (
             <ul className="mt-3 text-sm text-slate-300 space-y-1.5 list-disc list-inside">
+              <li>New How to Play section (above) — a plain-language rundown of match flow, turn order, the SP economy, targeting, and every status effect in the game.</li>
+              <li>New signature movesets for Kobayashi, Sora, Allie, Kara, and Hakudoshi — completing the Terra guild with a Chi-stacking martial artist, a reckless glass-cannon speedster, a vengeful Spite-hoarder who can disable your skills, a support bard who heals over time, and a taunting damage-sponge.</li>
               <li>New signature movesets for Alasia, Robert, Soren, Lyra, and Arthur — a bomb-token demolitionist, a streak-punching brawler with a counter stance, a shield/barrier/mirror-warden support, a Hera-Takeover-mode buffer/debuffer, and a lock-on marksman.</li>
               <li>Balance pass: Jett's Warning Shot now stuns and deals piercing damage in one hit (20 dmg + 2-turn stun under Kimura Special). Erika's Cutesy Magic and Star's Broken Heart now apply Expose (−50% DEF) instead of raw DEF-ignore. Star's Charm-shuriken now hits two random opponents. Kairu's Flash Kick (60 SP), Kenshin's Elemental Barrage (70 SP), and Kaitsu's Impressive Showcase (65 SP) cost more; Tana's Infernal Outburst deals less (35 AOE, 50 vs Burn).</li>
               <li>Pre-battle cutscenes now spotlight a random fighter from each team instead of always whoever was drafted first, every fighter has at least one line of their own, and drafting a full 5-fighter team from a single guild (AERO, Celestial, Flame, Mist, or Terra) triggers a special "guild joins the battle!" announcement.</li>
