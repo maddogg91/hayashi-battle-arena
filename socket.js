@@ -8,6 +8,10 @@ import { saveReplayToDisk } from "./replays.js";
 import { postToDiscord } from "./discord.js";
 import { buildBattleLogSummary } from "./battleLogSummary.js";
 import { summarizeBattleLogWithClaude } from "./aiBattleSummary.js";
+import { sessionMiddleware } from "./config/session.js";
+import { isAllowedOrigin } from "./config/corsOrigins.js";
+import { recordMatchResult } from "./db/users.js";
+import { mongoEnabled } from "./db/mongo.js";
 
 /**
  * Room shape:
@@ -85,6 +89,10 @@ function ensureRoom(roomId) {
     createdAt: now(),
     players: { A: null, B: null },
     names: { A: "Player A", B: "Player B" },
+    // Logged-in user id occupying each seat, if any (null for guests) —
+    // used at match end to credit wins/losses/character usage to the
+    // right account. Never broadcast to clients.
+    userIds: { A: null, B: null },
     selections: { A: null, B: null },
     chat: [],
     cutsceneAck: { A: false, B: false },
@@ -97,6 +105,25 @@ function ensureRoom(roomId) {
   return rooms[roomId];
 }
 function opponentRole(role) { return role === "A" ? "B" : "A"; }
+
+// Credits each logged-in seat's account with a win or loss and updates
+// their per-character usage, once, when a match actually finishes (all of
+// one side's fighters defeated). Guest seats (room.userIds[role] === null)
+// are skipped entirely — a guest's presence in the match never blocks the
+// other, logged-in side's result from being recorded. Deliberately scoped
+// to natural match completions only: a player leaving or disconnecting
+// mid-match does not currently record a loss for them.
+export async function recordMatchOutcome(room, state) {
+  if (!mongoEnabled()) return;
+  const aAlive = state.teams.A.some((u) => u.hp > 0);
+  const winnerRole = aAlive ? "A" : "B";
+  for (const role of ["A", "B"]) {
+    const userId = room.userIds[role];
+    if (!userId) continue;
+    const characters = (room.selections[role] || []).map((c) => c?.name).filter(Boolean);
+    await recordMatchResult(userId, { won: role === winnerRole, characters });
+  }
+}
 function safeEmit(io, roomId, event, payload) { try { io.to(roomId).emit(event, payload); } catch {} }
 function dropFromRoom(io, roomId, role) {
   const room = rooms[roomId];
@@ -183,6 +210,8 @@ function pairPlayers(io, s1, s2) {
   // names
   room.names.A = (s1.data.name || "Player A").slice(0, 40);
   room.names.B = (s2.data.name || "Player B").slice(0, 40);
+  room.userIds.A = s1.data.userId || null;
+  room.userIds.B = s2.data.userId || null;
 
   // bind + join
   s1.data.roomId = roomId; s1.data.role = "A";
@@ -259,6 +288,7 @@ function privateMatch(io, socket, passcode, name) {
       if (!room.players.A || room.players.A === "__LEFT__") {
         room.players.A = socket.id;
         room.names.A = socket.data.name || "Player A";
+        room.userIds.A = socket.data.userId || null;
         room.status = "select";
         socket.data.roomId = room.id; socket.data.role = "A";
         socket.join(room.id);
@@ -272,6 +302,7 @@ function privateMatch(io, socket, passcode, name) {
       if (!room.players.B || room.players.B === "__LEFT__") {
         room.players.B = socket.id;
         room.names.B = socket.data.name || "Player B";
+        room.userIds.B = socket.data.userId || null;
         room.status = "select";
         socket.data.roomId = room.id; socket.data.role = "B";
         socket.join(room.id);
@@ -308,6 +339,7 @@ function privateMatch(io, socket, passcode, name) {
 
   room.players.A = socket.id;
   room.names.A = socket.data.name || "Player A";
+  room.userIds.A = socket.data.userId || null;
   room.status = "select";
 
   socket.data.roomId = roomId; socket.data.role = "A";
@@ -372,7 +404,7 @@ async function postReplayRecap(room, state) {
 /* -------------------- Public API: init Socket.IO -------------------- */
 export function initSocket(httpServer) {
   const io = new Server(httpServer, {
-    cors: { origin: "*", methods: ["GET", "POST"] },
+    cors: { origin: (origin, cb) => cb(null, isAllowedOrigin(origin)), methods: ["GET", "POST"], credentials: true },
     // Socket.IO does not restore room membership or socket.data across a
     // reconnect by default — a brief network drop mid-match (much more
     // common on a real deployment than same-machine local testing) silently
@@ -388,7 +420,21 @@ export function initSocket(httpServer) {
     },
   });
 
+  // Attaches the same express-session middleware used by the HTTP API to
+  // Socket.IO's underlying engine.io upgrade requests, so a socket can read
+  // req.session (and therefore who's logged in) straight off the same
+  // cookie the browser already sends. io.engine.use() runs middleware on
+  // every handshake/poll request without needing a separate cookie-parsing
+  // + session-store lookup here. No-ops if accounts are disabled.
+  if (sessionMiddleware) io.engine.use(sessionMiddleware);
+
   io.on("connection", (socket) => {
+    // Populated only if this socket's handshake carried a valid session
+    // cookie for a logged-in user (see io.engine.use(sessionMiddleware)
+    // above) — stays null for guests, exactly like today.
+    socket.data.userId = socket.request?.session?.userId || null;
+    socket.data.username = socket.request?.session?.username || null;
+
     // Send the current global chat history right away so it's available
     // even before the client explicitly asks for it.
     socket.emit("globalChatHistory", globalChat);
@@ -439,6 +485,10 @@ export function initSocket(httpServer) {
 
       room.players[role] = socket.id;
       room.names[role] = (name || room.names[role] || `Player ${role}`).slice(0, 40);
+      // A reconnect keeps whatever userId the seat already had (a guest
+      // reconnecting is still a guest; a logged-in player reconnecting with
+      // a new socket picks their session back up via socket.data.userId).
+      room.userIds[role] = socket.data.userId || room.userIds[role] || null;
       socket.data.roomId = roomId;
       socket.data.role = role;
       socket.data.name = room.names[role];
@@ -519,7 +569,12 @@ export function initSocket(httpServer) {
       if (!room) return;
       const state = handleMove(roomId, role, move);
       io.to(roomId).emit("updateGame", state);
-      if (state?.over) room.status = "over";
+      if (state?.over && room.status !== "over") {
+        room.status = "over";
+        recordMatchOutcome(room, state).catch((err) => {
+          console.error("Failed to record match outcome:", err.message);
+        });
+      }
     });
 
     /* -------- Replay -------- */
