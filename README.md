@@ -71,7 +71,66 @@ heroku config:set ANTHROPIC_API_KEY=sk-ant-...
 Get a key from the [Anthropic Console](https://console.anthropic.com/).
 Treat it like a secret the same as the Discord webhook URLs above.
 
+### Optional: Accounts, profiles, and the leaderboard (MongoDB)
+
+Set the `MONGODB_URI` environment variable to enable registered accounts —
+without it, the app runs exactly as before: anyone can play as a guest,
+and the login button, profile page, and leaderboard all show a clean
+"not available" message instead of erroring.
+
+With it configured:
+
+- **Register / Log in** (button next to your name in the lobby) creates a
+  real account — passwords are hashed with bcrypt, sessions are cookie-based
+  (`express-session` + `connect-mongo`, stored in the same database).
+- **Guest play still works alongside accounts.** A logged-in player and a
+  guest can play each other; only the logged-in side's win/loss and
+  character usage get recorded. Nothing is tracked for a guest-vs-guest
+  match.
+- **My Profile** shows your total wins/losses/win rate and a per-character
+  breakdown of what you've drafted, with picks and win rate for each.
+- **Leaderboard** ranks every player who's finished at least one match by
+  total wins.
+
+```bash
+# locally (.env, not committed)
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/hayashi
+SESSION_SECRET=some-long-random-string   # signs the session cookie — required in production
+
+# Heroku
+heroku config:set MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/hayashi
+heroku config:set SESSION_SECRET=some-long-random-string
+```
+
+If you host the client on a different origin than the API (rather than the
+default single-origin deploy this repo builds), also set `CLIENT_ORIGIN` to
+that origin so its cross-origin, cookie-carrying requests are allowed —
+local Vite dev (`http://localhost:5173`) is already allowlisted by default.
+
+```bash
+heroku config:set CLIENT_ORIGIN=https://your-frontend.example.com
+```
+
+Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
+
 ## Changelog
+
+### 2026-08-20 — Accounts, profiles, and a leaderboard (MongoDB)
+
+- **Optional login/registration**, backed by MongoDB — see "Optional:
+  Accounts, profiles, and the leaderboard" above for setup. Sessions are
+  cookie-based (`express-session` + `connect-mongo`), passwords are hashed
+  with bcrypt, and the feature is fully optional: without `MONGODB_URI`
+  set, the app behaves exactly as it did before this change.
+- **Guest play is preserved.** Logging in is never required to play — it
+  only unlocks a profile and puts your results on the leaderboard. A
+  logged-in player can still match against a guest; only the logged-in
+  side's result is recorded.
+- **New Profile page** — your total wins/losses/win rate, plus a
+  per-character breakdown (picks and win rate for every fighter you've
+  drafted), sorted by how often you play them.
+- **New Leaderboard page** — every player who's finished at least one
+  match, ranked by total wins.
 
 ### 2026-08-19 — New movesets for Kobayashi, Sora, Allie, Kara, Hakudoshi + How to Play
 

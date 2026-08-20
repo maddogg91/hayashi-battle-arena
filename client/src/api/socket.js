@@ -10,4 +10,8 @@ export const backendUrl = envUrl
   : import.meta.env.DEV
   ? "http://localhost:8080"
   : window.location.origin;
-export const socket = io(backendUrl);
+// withCredentials so the session cookie set by /api/auth/login rides along
+// on the socket.io handshake — that's how socket.js knows which connected
+// socket belongs to a logged-in account (see io.engine.use(sessionMiddleware)
+// server-side).
+export const socket = io(backendUrl, { withCredentials: true });

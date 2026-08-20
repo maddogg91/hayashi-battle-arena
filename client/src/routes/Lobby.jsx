@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { socket } from "../api/socket";
 import ReportBugModal from "../components/ReportBugModal";
+import AuthModal from "../components/AuthModal";
+import { getMe, logout as apiLogout } from "../api/auth";
 
 const btnPrimary =
   "w-full bg-gradient-to-b from-gold-400 to-gold-500 hover:from-gold-300 hover:to-gold-400 text-ink-950 font-display font-bold text-base py-3 rounded-xl shadow-lg shadow-gold-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gold-500 disabled:to-gold-500 disabled:shadow-none";
 const btnSecondary =
   "text-sm px-4 py-2.5 rounded-xl bg-panel-raised hover:bg-panel-line text-slate-200 font-semibold border border-panel-line transition";
 
-export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpenGuide }) {
+export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpenGuide, onOpenProfile, onOpenLeaderboard }) {
   const [name, setName] = useState("");
   const [hasName, setHasName] = useState(false);
   const [loadingPublic, setLoadingPublic] = useState(false);
@@ -18,17 +20,52 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
   const [showReportModal, setShowReportModal] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authUser, setAuthUser] = useState(null); // null = guest/logged out
 
-  // Load saved name + announce presence if we already have one
+  const applyIdentity = (displayName) => {
+    setName(displayName);
+    setHasName(true);
+    socket.emit("presenceHello", { name: displayName });
+    onNameSaved?.(displayName);
+  };
+
+  // Prefer an existing login session over the guest name saved locally —
+  // a logged-in user always plays as their account, never a stale guest
+  // name from before they signed up.
   useEffect(() => {
-    const saved = localStorage.getItem("hayashi_player_name");
-    if (saved) {
-      setName(saved);
-      setHasName(true);
-      socket.emit("presenceHello", { name: saved });
-      onNameSaved?.(saved);
-    }
+    (async () => {
+      try {
+        const user = await getMe();
+        if (user) {
+          setAuthUser(user);
+          applyIdentity(user.username);
+          return;
+        }
+      } catch {
+        // Accounts disabled on this server, or a network hiccup — fall
+        // back to the guest flow below exactly like before this feature.
+      }
+      const saved = localStorage.getItem("hayashi_player_name");
+      if (saved) applyIdentity(saved);
+    })();
   }, []);
+
+  const handleAuthed = (user) => {
+    setAuthUser(user);
+    setShowAuthModal(false);
+    applyIdentity(user.username);
+  };
+
+  const handleLogout = async () => {
+    try { await apiLogout(); } catch { /* session cookie may already be gone — proceed anyway */ }
+    setAuthUser(null);
+    // Drop back to the guest flow rather than leaving a logged-out user
+    // stuck on an identity screen with no way to change it.
+    setHasName(false);
+    setName("");
+    localStorage.removeItem("hayashi_player_name");
+  };
 
   // Core listeners
   useEffect(() => {
@@ -130,6 +167,12 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
           <button onClick={saveName} className={btnPrimary}>
             Continue
           </button>
+          <button
+            onClick={() => setShowAuthModal(true)}
+            className="w-full mt-3 text-sm text-gold-300 hover:text-gold-200 font-semibold transition"
+          >
+            Have an account? Log in instead
+          </button>
         </div>
         <p className="mt-5 text-xs text-slate-500">Your name is stored locally for next time.</p>
         <button
@@ -141,6 +184,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
         {showReportModal && (
           <ReportBugModal name={name || "Anonymous"} onClose={() => setShowReportModal(false)} />
         )}
+        {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} onAuth={handleAuthed} />}
       </div>
     );
   }
@@ -150,8 +194,26 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-2xl sm:text-3xl font-bold text-gold-300">
             Welcome, {name}!
+            {!authUser && (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="ml-3 align-middle text-xs px-2.5 py-1 rounded-lg bg-panel-line hover:bg-panel-line/70 text-slate-300 font-body font-normal transition"
+              >
+                Log in
+              </button>
+            )}
           </h2>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {onOpenLeaderboard && (
+              <button onClick={onOpenLeaderboard} className={btnSecondary}>
+                🏆 Leaderboard
+              </button>
+            )}
+            {authUser && onOpenProfile && (
+              <button onClick={onOpenProfile} className={btnSecondary}>
+                👤 <span className="hidden sm:inline">My </span>Profile
+              </button>
+            )}
             {onOpenGuide && (
               <button onClick={onOpenGuide} className={btnSecondary}>
                 📖 <span className="hidden sm:inline">Character </span>Guide
@@ -160,11 +222,17 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
             <button onClick={() => setShowReportModal(true)} className={btnSecondary}>
               🐛 <span className="hidden sm:inline">Report a </span>Bug
             </button>
+            {authUser && (
+              <button onClick={handleLogout} className={btnSecondary}>
+                Log Out
+              </button>
+            )}
           </div>
         </div>
         {showReportModal && (
           <ReportBugModal name={name} onClose={() => setShowReportModal(false)} />
         )}
+        {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} onAuth={handleAuthed} />}
 
         <div className="grid sm:grid-cols-2 gap-5">
           {/* Quick Match */}
@@ -325,6 +393,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
           </button>
           {showWhatsNew && (
             <ul className="mt-3 text-sm text-slate-300 space-y-1.5 list-disc list-inside">
+              <li>Optional accounts — log in or sign up (link next to your name) to get a Profile with your win/loss record and per-character stats, and a place on the new Leaderboard. Guest play still works exactly like before; logging in is never required.</li>
               <li>New How to Play section (above) — a plain-language rundown of match flow, turn order, the SP economy, targeting, and every status effect in the game.</li>
               <li>New signature movesets for Kobayashi, Sora, Allie, Kara, and Hakudoshi — completing the Terra guild with a Chi-stacking martial artist, a reckless glass-cannon speedster, a vengeful Spite-hoarder who can disable your skills, a support bard who heals over time, and a taunting damage-sponge.</li>
               <li>New signature movesets for Alasia, Robert, Soren, Lyra, and Arthur — a bomb-token demolitionist, a streak-punching brawler with a counter stance, a shield/barrier/mirror-warden support, a Hera-Takeover-mode buffer/debuffer, and a lock-on marksman.</li>

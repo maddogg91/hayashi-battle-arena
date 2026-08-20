@@ -3,6 +3,8 @@ import { socket } from "../api/socket";
 import Lobby from "./Lobby";
 import CharacterSelect from "./CharacterSelect";
 import CharacterGuide from "./CharacterGuide";
+import Profile from "./Profile";
+import Leaderboard from "./Leaderboard";
 import TeamGrid from "../components/TeamGrid";
 import MovesPanel from "../components/MovesPanel";
 import ReplayViewer from "../components/ReplayViewer";
@@ -68,6 +70,8 @@ export default function Game() {
   const [inLobby, setInLobby] = useState(true);
   const [waiting, setWaiting] = useState(true);
   const [showGuide, setShowGuide] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   // Net/Game
   const [roomId, setRoomId] = useState(null);
@@ -366,6 +370,14 @@ export default function Game() {
     return <CharacterGuide onBack={() => setShowGuide(false)} />;
   }
 
+  if (showProfile) {
+    return <Profile onBack={() => setShowProfile(false)} />;
+  }
+
+  if (showLeaderboard) {
+    return <Leaderboard onBack={() => setShowLeaderboard(false)} />;
+  }
+
   if (inLobby) {
     return (
       <div className="grid lg:grid-cols-3 gap-5 sm:gap-6 p-4 sm:p-6">
@@ -388,6 +400,8 @@ export default function Game() {
             setRole={setRole}
             onNameSaved={setMyName}
             onOpenGuide={() => setShowGuide(true)}
+            onOpenProfile={() => setShowProfile(true)}
+            onOpenLeaderboard={() => setShowLeaderboard(true)}
           />
         </div>
         <div className="space-y-5 sm:space-y-6">
