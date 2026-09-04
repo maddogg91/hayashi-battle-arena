@@ -1,7 +1,7 @@
 # ---------------------------------------
 # Stage 1: Build the client with Vite
 # ---------------------------------------
-FROM node:20-alpine AS client-builder
+FROM node:22-alpine AS client-builder
 WORKDIR /app
 
 # Install deps only for the client
@@ -21,7 +21,7 @@ RUN cd client && npm run build
 # ---------------------------------------
 # Stage 2: Install server deps (prod)
 # ---------------------------------------
-FROM node:20-alpine AS server-deps
+FROM node:22-alpine AS server-deps
 WORKDIR /app
 
 # Install only production deps for the server
@@ -31,7 +31,7 @@ RUN npm i --omit=dev
 # ---------------------------------------
 # Stage 3: Runtime image
 # ---------------------------------------
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 WORKDIR /app
 
 # Set NODE_ENV for performance
@@ -40,13 +40,22 @@ ENV NODE_ENV=production
 # Cloud Run/Heroku will inject $PORT; default to 8080 locally
 ENV PORT=8080
 
-# Copy server runtime deps and source
+# Copy server runtime deps and source. *.js picks up every root-level
+# module (index.js, socket.js, replays.js, discord.js, feedback.js,
+# battleLogSummary.js, aiBattleSummary.js, ...) instead of naming each one,
+# so a new root-level file doesn't silently go missing from the image the
+# way discord.js/feedback.js/aiBattleSummary.js/battleLogSummary.js and the
+# whole db/ directory previously did here — that omission meant every one
+# of those ESM imports would fail at container startup (Node resolves all
+# static imports before any code runs, so this crashed immediately, not
+# just when the missing feature was used).
 COPY --from=server-deps /app/node_modules ./node_modules
-COPY index.js socket.js replays.js ./
+COPY *.js ./
 COPY config ./config
 COPY game ./game
 COPY routes ./routes
 COPY data ./data
+COPY db ./db
 
 # Client build already lands in public/app via vite's outDir
 COPY --from=client-builder /app/public ./public
