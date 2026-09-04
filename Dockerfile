@@ -60,6 +60,20 @@ COPY db ./db
 # Client build already lands in public/app via vite's outDir
 COPY --from=client-builder /app/public ./public
 
+# replays.js/feedback.js write JSON files under data/replays and
+# data/feedback at runtime (Save Replay, Report a Bug). Those two
+# directories are gitignored (data/replays/, data/feedback/), so a fresh
+# checkout/Cloud Build clone never has them, and everything copied above
+# was copied as root. Without this, the non-root `node` user below can't
+# create files there (EACCES: permission denied) — which is exactly what
+# broke Save Replay silently on Cloud Run: the handler had no error
+# handling, so the permission failure never reached the player, the button
+# just did nothing. Pre-creating the dirs and handing them to `node` here
+# fixes the root cause; socket.js/feedback error handling (see those files)
+# is the belt-and-suspenders fix so a future filesystem issue is never
+# silent again.
+RUN mkdir -p data/replays data/feedback && chown -R node:node data
+
 # (Optional but recommended) Use a non-root user for security
 # node user exists in the official image
 USER node
