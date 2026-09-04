@@ -393,6 +393,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
           </button>
           {showWhatsNew && (
             <ul className="mt-3 text-sm text-slate-300 space-y-1.5 list-disc list-inside">
+              <li>New Battle Summary screen after every match — a winner banner, an MVP card (based on a composite "Impact Score": damage dealt + damage guarded + healing done + KOs×40, not just who got the finishing blow), and a full per-character stat table for both teams covering damage dealt, damage guarded, damage taken, healing done, healing received, KOs, and every status effect they were afflicted with.</li>
               <li>Optional accounts — log in or sign up (link next to your name) to get a Profile with your win/loss record and per-character stats, and a place on the new Leaderboard. Guest play still works exactly like before; logging in is never required.</li>
               <li>New How to Play section (above) — a plain-language rundown of match flow, turn order, the SP economy, targeting, and every status effect in the game.</li>
               <li>New signature movesets for Kobayashi, Sora, Allie, Kara, and Hakudoshi — completing the Terra guild with a Chi-stacking martial artist, a reckless glass-cannon speedster, a vengeful Spite-hoarder who can disable your skills, a support bard who heals over time, and a taunting damage-sponge.</li>
