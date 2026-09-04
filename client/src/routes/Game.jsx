@@ -232,6 +232,7 @@ export default function Game() {
     };
 
     const onReplaySaved = ({ replayId }) => setReplayId(replayId);
+    const onReplayError = ({ message }) => alert(message || "Couldn't save the replay. Please try again.");
 
     socket.on("matched", onMatched);
     socket.on("lobbyComplete", onLobbyComplete);
@@ -241,6 +242,7 @@ export default function Game() {
     socket.on("updateGame", onUpdateGame);
     socket.on("opponentLeft", onOpponentLeft);
     socket.on("replaySaved", onReplaySaved);
+    socket.on("replayError", onReplayError);
     socket.on("rejoinFailed", onRejoinFailed);
     socket.on("opponentDisconnected", onOpponentDisconnected);
     socket.on("opponentReconnected", onOpponentReconnected);
@@ -254,6 +256,7 @@ export default function Game() {
       socket.off("updateGame", onUpdateGame);
       socket.off("opponentLeft", onOpponentLeft);
       socket.off("replaySaved", onReplaySaved);
+      socket.off("replayError", onReplayError);
       socket.off("rejoinFailed", onRejoinFailed);
       socket.off("opponentDisconnected", onOpponentDisconnected);
       socket.off("opponentReconnected", onOpponentReconnected);

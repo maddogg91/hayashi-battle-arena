@@ -581,12 +581,25 @@ export function initSocket(httpServer) {
     socket.on("saveReplay", ({ roomId }) => {
       const state = getGame(roomId);
       if (!state) return;
-      const replayId = saveReplayToDisk({
-        roomId,
-        ts: now(),
-        teams: state.teams,
-        log: state.log,
-      });
+      // saveReplayToDisk writes to the filesystem (see replays.js), which
+      // can genuinely fail (permissions, disk full, read-only mount) in
+      // ways that have nothing to do with the match itself. Previously
+      // unhandled here, so a failure meant the client just never got
+      // "replaySaved" — Save Replay silently did nothing, no error, no
+      // confirmation, indistinguishable from a network hiccup. Surface it.
+      let replayId;
+      try {
+        replayId = saveReplayToDisk({
+          roomId,
+          ts: now(),
+          teams: state.teams,
+          log: state.log,
+        });
+      } catch (err) {
+        console.error("Failed to save replay:", err.message);
+        socket.emit("replayError", { message: "Couldn't save the replay. Please try again." });
+        return;
+      }
       replays[replayId] = { id: replayId, ts: now(), roomId, turns: state.log?.length || 0 };
       io.to(roomId).emit("replaySaved", { replayId });
 
