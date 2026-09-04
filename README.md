@@ -115,6 +115,20 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 
 ## Changelog
 
+### 2026-09-04 — Post-match Battle Summary screen with MVP
+
+- **New Battle Summary screen** replaces the live battle view once a match
+  ends: a winner banner, an MVP card, and a per-character stat table for
+  both teams — damage dealt, damage guarded (dodges/invulns/barriers/
+  mirrors count the hit's full value; armor/fortress/shield count just the
+  reduced portion), damage taken, healing done, healing received, KOs, and
+  a breakdown of every status effect the character was afflicted with.
+  Save Replay and Back to Lobby move here too, with the full battle log
+  available as a collapsible section underneath.
+- **MVP is a composite "Impact Score"**, not just KO count — `damage dealt
+  + damage guarded + healing done + KOs × 40` — so a healer or tank who
+  carried the fight can win it over whoever landed the last hit.
+
 ### 2026-08-20 — Accounts, profiles, and a leaderboard (MongoDB)
 
 - **Optional login/registration**, backed by MongoDB — see "Optional:

@@ -27,6 +27,54 @@ let cache = loadRoster();    // { chars, movesByChar, dialogueRows }
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 
 function newEffects() { return { stun:0, bind:0, burn:0, shield:0, reflect:0, invuln:0, charm:0, immune:0, confuse:0, expose:0, barrier:0, mirror:0 }; }
+// Per-match running totals shown on the post-battle summary screen.
+// damageDealt/damageTaken/healingDone/healingReceived are all *actual*
+// HP-changed amounts (clamped to what really moved, e.g. an overkill hit
+// only counts the HP the target actually had left), not the nominal
+// numbers a move's action step requested. damageGuarded is the exception:
+// it's how much a hit was WORTH before mitigation reduced or fully
+// negated it (dodge/invuln/barrier/mirror count the hit's full nominal
+// value; armor/fortress/shield count just the reduced-away portion) — see
+// applyDamage(). statusesReceived only covers effect-kind status types
+// (stun/bind/burn/charm/confuse/expose/shield/reflect/invuln/barrier/
+// mirror), not stat mods like a curse's -SPD. kos only credits a direct
+// hit through applyDamage with a different attacker — passive damage
+// (burn ticks, a mode's own upkeep self-damage) that finishes someone off
+// doesn't credit anyone, since there's no clear "attacker" for it.
+function newStats() {
+  return {
+    damageDealt: 0,
+    damageGuarded: 0,
+    damageTaken: 0,
+    healingDone: 0,
+    healingReceived: 0,
+    statusesReceived: {},
+    kos: 0,
+  };
+}
+// Shared HP-mutation helpers so every place HP moves (not just applyDamage,
+// which handles attacks specifically) books it into the same stats. Both
+// return the *actual* amount that moved (post-clamp), which is what gets
+// recorded — see the newStats() comment above for why.
+function healUnit(target, amt) {
+  if (amt <= 0) return 0;
+  const before = target.hp;
+  target.hp = clamp(target.hp + amt, 0, MAX_HP);
+  const delta = target.hp - before;
+  if (delta > 0) target.stats.healingReceived += delta;
+  return delta;
+}
+function damageUnit(target, amt) {
+  if (amt <= 0) return 0;
+  const before = target.hp;
+  target.hp = clamp(target.hp - amt, 0, MAX_HP);
+  const delta = before - target.hp;
+  if (delta > 0) target.stats.damageTaken += delta;
+  return delta;
+}
+function recordStatus(t, type) {
+  t.stats.statusesReceived[type] = (t.stats.statusesReceived[type] || 0) + 1;
+}
 function addEffect(f, k, turns) { f.effects[k] = Math.max(f.effects[k], turns); }
 function tickEffects(f) {
   for (const k of Object.keys(f.effects)) if (f.effects[k] > 0) f.effects[k] -= 1;
@@ -125,10 +173,12 @@ function applyDamage(attacker, defender, raw, opts = {}) {
   const dodge = dodgeChanceOf(defender);
   if (dodge > 0 && !opts.trueStrike && !opts.lockedOn && Math.random() < dodge) {
     notes.push(`${defender.name} dodges the attack!`);
+    defender.stats.damageGuarded += raw;
     return { dmg: 0, notes };
   }
   if (defender.effects.invuln > 0 && !opts.trueStrike) {
     notes.push(`${defender.name} is invulnerable and takes no damage.`);
+    defender.stats.damageGuarded += raw;
     return { dmg: 0, notes };
   }
   // Soren's Reflect Barrier: fully negates the hit, and the defender takes
@@ -137,7 +187,8 @@ function applyDamage(attacker, defender, raw, opts = {}) {
   if (defender.effects.barrier > 0) {
     defender.effects.barrier = 0;
     const selfDmg = Math.max(1, Math.floor(dmg * 0.25));
-    defender.hp = clamp(defender.hp - selfDmg, 0, MAX_HP);
+    damageUnit(defender, selfDmg);
+    defender.stats.damageGuarded += raw;
     notes.push(`${defender.name}'s barrier negates the attack and backlashes for ${selfDmg}.`);
     return { dmg: 0, notes };
   }
@@ -146,7 +197,9 @@ function applyDamage(attacker, defender, raw, opts = {}) {
   if (defender.effects.mirror > 0) {
     defender.effects.mirror = 0;
     const healAmt = Math.max(1, Math.floor(dmg * 0.25));
-    defender.hp = clamp(defender.hp + healAmt, 0, MAX_HP);
+    healUnit(defender, healAmt);
+    defender.stats.healingDone += healAmt; // self-triggered — the mirror is the defender's own effect
+    defender.stats.damageGuarded += raw;
     notes.push(`${defender.name}'s mirror negates the attack and heals for ${healAmt}.`);
     return { dmg: 0, notes };
   }
@@ -175,6 +228,7 @@ function applyDamage(attacker, defender, raw, opts = {}) {
   }
   if (armorReduction > 0) {
     const reduced = Math.max(1, Math.floor(dmg * (1 - Math.min(0.9, armorReduction))));
+    defender.stats.damageGuarded += dmg - reduced;
     notes.push(`${defender.name}'s armor absorbs some damage (−${dmg - reduced}).`);
     dmg = reduced;
   }
@@ -182,18 +236,26 @@ function applyDamage(attacker, defender, raw, opts = {}) {
   const modeReduction = dmgReductionOf(defender);
   if (modeReduction < 1) {
     const reduced = Math.max(1, Math.floor(dmg * modeReduction));
+    defender.stats.damageGuarded += dmg - reduced;
     notes.push(`${defender.name}'s fortress absorbs some damage (−${dmg - reduced}).`);
     dmg = reduced;
   }
   if (!opts.unguardable && defender.effects.shield > 0) {
     const reduced = Math.max(1, Math.floor(dmg * 0.5));
+    defender.stats.damageGuarded += dmg - reduced;
     notes.push(`${defender.name} is shielded (−${dmg - reduced}).`);
     dmg = reduced;
   }
-  defender.hp = clamp(defender.hp - dmg, 0, MAX_HP);
+  const wasAlive = defender.hp > 0;
+  const actualDmg = damageUnit(defender, dmg);
+  if (attacker !== defender) {
+    attacker.stats.damageDealt += actualDmg;
+    if (actualDmg > 0 && wasAlive && defender.hp <= 0) attacker.stats.kos += 1;
+  }
   if (defender.effects.reflect > 0 && dmg > 0) {
     const refl = Math.max(1, Math.floor(dmg * 0.5));
-    attacker.hp = clamp(attacker.hp - refl, 0, MAX_HP);
+    const actualRefl = damageUnit(attacker, refl);
+    if (attacker !== defender) defender.stats.damageDealt += actualRefl;
     notes.push(`${defender.name} reflects ${refl} to ${attacker.name}.`);
   }
   return { dmg, notes };
@@ -260,7 +322,7 @@ function canAct(u) { return u.hp>0 && u.effects.bind<=0; }
 function startTurnUpkeep(u, game) {
   if (u.effects.burn > 0) {
     const burnDmg = 6;
-    u.hp = clamp(u.hp - burnDmg, 0, MAX_HP);
+    damageUnit(u, burnDmg);
     game.log.push(`${u.name} suffers ${burnDmg} burn damage.`);
   }
   // Modes like Shou's Arahabaki carry a self-damage-per-turn cost for as
@@ -271,12 +333,15 @@ function startTurnUpkeep(u, game) {
     for (const [name, m] of Object.entries(u.modes)) {
       if (!m || m.turns <= 0) continue;
       if (m.selfDamage > 0) {
-        u.hp = clamp(u.hp - m.selfDamage, 0, MAX_HP);
+        damageUnit(u, m.selfDamage);
         const label = name.charAt(0).toUpperCase() + name.slice(1);
         game.log.push(`${u.name} takes ${m.selfDamage} damage from ${label}.`);
       }
       if (m.hotHeal > 0 || m.hotSp > 0) {
-        if (m.hotHeal > 0) u.hp = clamp(u.hp + m.hotHeal, 0, MAX_HP);
+        // healingReceived only — this is a passive upkeep tick with no
+        // clear "healer" unit to credit healingDone to, same scope
+        // limitation as burn/selfDamage having no attacker for damageDealt.
+        if (m.hotHeal > 0) healUnit(u, m.hotHeal);
         if (m.hotSp > 0) u.sp = clamp(u.sp + m.hotSp, 0, MAX_SP);
         const label = name.charAt(0).toUpperCase() + name.slice(1);
         game.log.push(`${u.name} gains ${m.hotHeal || 0} HP and ${m.hotSp || 0} SP from ${label}.`);
@@ -291,7 +356,11 @@ function startTurnUpkeep(u, game) {
     for (const [name, regen] of Object.entries(STACK_REGEN)) {
       const count = u.stacks[name] || 0;
       if (count > 0) {
-        u.hp = clamp(u.hp + regen.hp * count, 0, MAX_HP);
+        // Self-caused (the unit's own accumulated stacks), so credit both
+        // sides of the heal — healingReceived via healUnit() and
+        // healingDone since the unit is effectively healing itself.
+        const healed = healUnit(u, regen.hp * count);
+        u.stats.healingDone += healed;
         u.sp = clamp(u.sp + regen.sp * count, 0, MAX_SP);
         game.log.push(`${u.name} gains ${regen.hp * count} HP and ${regen.sp * count} SP from ${count} Chi token(s).`);
       }
@@ -568,16 +637,18 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
       if (step.comboBonus) amt += Number(step.comboBonus.per || 0) * (actor.comboCount || 0);
       const scope = step.target || "self";
       if (scope === "self") {
-        actor.hp = clamp(actor.hp + amt, 0, MAX_HP);
+        const healed = healUnit(actor, amt);
+        actor.stats.healingDone += healed;
         log.push(`${actor.name} heals for ${amt} HP with ${skillLabel}.`);
       } else if (scope === "ally") {
         arr.forEach(t => {
-          t.hp = clamp(t.hp + amt, 0, MAX_HP);
+          const healed = healUnit(t, amt);
+          actor.stats.healingDone += healed;
           log.push(`${actor.name} heals ${t.name} for ${amt} HP with ${skillLabel}.`);
         });
       } else if (scope === "aoe_team") {
         const myTeam = game.teams[game.actor.role].filter(x=>x.hp>0);
-        myTeam.forEach(x => x.hp = clamp(x.hp + amt, 0, MAX_HP));
+        myTeam.forEach(x => { actor.stats.healingDone += healUnit(x, amt); });
         log.push(`${actor.name}'s team heals for ${amt} HP with ${skillLabel}.`);
       }
     } else if (kind === "effect") {
@@ -604,6 +675,7 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
           }
           if (Math.random() < chance) {
             addEffect(t, type, turns);
+            recordStatus(t, type);
             log.push(`${t.name} is afflicted with ${label} (${turns}) by ${skillLabel}.`);
           }
           if (step.clearEffect) t.effects[step.clearEffect] = 0;
@@ -611,6 +683,7 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
       } else if (scope === "self") {
         if (Math.random() < chance) {
           addEffect(actor, type, turns);
+          recordStatus(actor, type);
           log.push(`${actor.name} gains ${label} (${turns}) from ${skillLabel}.`);
         }
         if (step.clearEffect) actor.effects[step.clearEffect] = 0;
@@ -618,6 +691,7 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
         game.teams[game.actor.role].forEach(t => {
           if (Math.random() < chance) {
             addEffect(t, type, turns);
+            recordStatus(t, type);
             log.push(`${t.name} gains ${label} (${turns}) from ${skillLabel}.`);
           }
           if (step.clearEffect) t.effects[step.clearEffect] = 0;
@@ -756,7 +830,7 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
       }
     } else if (kind === "recoil") {
       const amt = Number(step.amount || 0);
-      actor.hp = clamp(actor.hp - amt, 0, MAX_HP);
+      damageUnit(actor, amt);
       log.push(`${actor.name} takes ${amt} recoil damage from ${skillLabel}.`);
     } else if (kind === "guard") {
       // Vows to avenge a target (Liara's Ronin's Revenge protecting an
@@ -843,6 +917,7 @@ export function initGame(selections, roomId, names = {}) {
       mods: [],
       stacks: {},
       modes: {},
+      stats: newStats(),
       comboKey: null,
       comboCount: 0,
       comboTargetKey: null,

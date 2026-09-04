@@ -7,10 +7,10 @@ import Profile from "./Profile";
 import Leaderboard from "./Leaderboard";
 import TeamGrid from "../components/TeamGrid";
 import MovesPanel from "../components/MovesPanel";
-import ReplayViewer from "../components/ReplayViewer";
 import PreBattleCutscene from "../components/PreBattleCutscene";
 import ChatPanel from "../components/ChatPanel";
 import LobbyUsersPanel from "../components/LobbyUsersPanel";
+import BattleSummary from "../components/BattleSummary";
 
 // Mirrors requirementsMet() in game/engine.js — mostly a belt-and-suspenders
 // guard since MovesPanel already greys out buttons that fail this, but
@@ -517,6 +517,37 @@ export default function Game() {
     );
   }
 
+  if (game && game.over) {
+    const summaryNames = {
+      A: role === "A" ? myName : names.A,
+      B: role === "B" ? myName : names.B,
+    };
+    return (
+      <div className="grid lg:grid-cols-3 gap-5 sm:gap-6 p-4 sm:p-6">
+        <BattleSummary
+          game={game}
+          names={summaryNames}
+          replayId={replayId}
+          log={log}
+          onSaveReplay={() => socket.emit("saveReplay", { roomId })}
+          onLeave={leaveToLobby}
+        />
+        <ChatPanel
+          socket={socket}
+          roomId={roomId}
+          role={role}
+          playerName={chatDisplayName}
+          messages={chat}
+          onHistory={handleChatHistory}
+          onPush={handleChatPush}
+          globalMessages={globalChat}
+          onGlobalHistory={handleGlobalChatHistory}
+          onGlobalPush={handleGlobalChatPush}
+        />
+      </div>
+    );
+  }
+
   if (game) {
     const myTeam = game.teams?.[role] ?? [];
     const enemyRole = role === "A" ? "B" : "A";
@@ -600,24 +631,6 @@ export default function Game() {
             </div>
           </div>
 
-          {game.over && (
-            <div className="mt-4 flex items-center justify-center gap-3">
-              <button
-                onClick={() => socket.emit("saveReplay", { roomId })}
-                className="px-5 py-2.5 rounded-xl bg-teamA-500 hover:bg-teamA-400 text-ink-950 font-display font-bold transition"
-              >
-                Save Replay
-              </button>
-              <button
-                onClick={leaveToLobby}
-                className="px-5 py-2.5 rounded-xl bg-panel-raised hover:bg-panel-line text-slate-200 font-display font-bold border border-panel-line transition"
-              >
-                Back to Lobby
-              </button>
-            </div>
-          )}
-
-          {replayId && <ReplayViewer replayId={replayId} />}
         </div>
 
         <ChatPanel

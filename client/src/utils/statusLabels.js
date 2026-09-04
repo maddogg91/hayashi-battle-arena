@@ -37,10 +37,30 @@ const MODE_LABELS = {
   toughbody: "Tough Body",
 };
 
+// Mirrors EFFECT_LABEL in game/engine.js — used for the per-status-type
+// breakdown on the post-battle summary screen (stats.statusesReceived keys).
+const STATUS_LABELS = {
+  stun: "Stun",
+  bind: "Bind",
+  burn: "Burn",
+  shield: "Shield",
+  reflect: "Reflect",
+  invuln: "Invulnerability",
+  charm: "Charm",
+  confuse: "Confuse",
+  expose: "Expose",
+  barrier: "Barrier",
+  mirror: "Mirror",
+};
+
 export function stackLabel(name) {
   return STACK_LABELS[name] || name;
 }
 
 export function modeLabel(name) {
   return MODE_LABELS[name] || name;
+}
+
+export function statusLabel(name) {
+  return STATUS_LABELS[name] || name;
 }
