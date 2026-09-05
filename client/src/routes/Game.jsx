@@ -270,6 +270,13 @@ export default function Game() {
     game?.actor ? game.teams[game.actor.role][game.actor.i] : null;
   const iAmActing = !!(game?.actor && role === game.actor.role);
 
+  // Practice matches are entered via Lobby's "Start Practice Match" (see
+  // socket.js's startPractice()), which always names the opposing seat
+  // "Training Dummies" — server-authoritative and set the moment "matched"
+  // arrives, so this is reliable without a dedicated boolean ever needing
+  // to be threaded through every event handler above.
+  const isPractice = names.B === "Training Dummies";
+
   // Diffs consecutive game states to drive hit/heal/status/KO animations and
   // sound effects — see useBattleEffects for how it derives these from pure
   // HP/effects deltas without the server emitting any dedicated event.
@@ -371,6 +378,28 @@ export default function Game() {
     setChat([]);
   };
 
+  // Practice-only: tears down the current practice room and immediately
+  // spins up a fresh one, landing back on CharacterSelect once the new
+  // "matched" arrives — lets a solo player try a different 5 without
+  // going all the way back through the lobby. Deliberately leaves
+  // `inLobby` false throughout so the screen falls straight through to
+  // CharacterSelect the moment roomId/role update.
+  const restartPracticeSelection = () => {
+    socket.emit("leaveRoom");
+    clearSession();
+    setOpponentStatus(null);
+    setGame(null);
+    setLog([]);
+    setTeam(null);
+    setTarget(null);
+    setPendingMove(null);
+    setReplayId(null);
+    setCutscene(null);
+    setChat([]);
+    setWaiting(true);
+    socket.emit("startPractice", { name: myName });
+  };
+
   // ---- Renders ----
   if (reconnecting) {
     return (
@@ -458,6 +487,7 @@ export default function Game() {
             role={role}
             onSelect={(chosen) => setTeam(chosen)}
             onLeave={leaveToLobby}
+            isPractice={isPractice}
           />
         </div>
         <ChatPanel
@@ -482,7 +512,9 @@ export default function Game() {
         <div className="lg:col-span-2 flex flex-col items-center justify-center text-center mt-6 sm:mt-10 gap-3">
           <div className="h-9 w-9 rounded-full border-4 border-gold-500/30 border-t-gold-400 animate-spin mb-1" />
           <h2 className="font-display text-2xl font-bold text-gold-300">Hayashi Academy Arena</h2>
-          <p className="text-slate-400 text-sm">Waiting for opponent to select their team...</p>
+          <p className="text-slate-400 text-sm">
+            {isPractice ? "Setting up your practice match…" : "Waiting for opponent to select their team..."}
+          </p>
           <button
             onClick={leaveToLobby}
             className="mt-2 text-xs px-4 py-2 rounded-lg bg-panel-raised hover:bg-panel-line text-slate-300 border border-panel-line transition"
@@ -547,6 +579,8 @@ export default function Game() {
           log={log}
           onSaveReplay={() => socket.emit("saveReplay", { roomId })}
           onLeave={leaveToLobby}
+          isPractice={isPractice}
+          onNewTeam={restartPracticeSelection}
         />
         <ChatPanel
           socket={socket}
@@ -582,6 +616,26 @@ export default function Game() {
             {" "}vs{" "}
             <span className="text-teamB-400 font-medium">{rightName || "Player B"}</span>
           </div>
+
+          {isPractice && (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs px-2.5 py-1 rounded-full bg-gold-500/15 text-gold-300 font-semibold">
+                🏋️ Practice Mode
+              </span>
+              <button
+                onClick={() => { playSfx("click"); restartPracticeSelection(); }}
+                className="text-xs px-3 py-1.5 rounded-lg bg-panel-raised hover:bg-panel-line text-slate-300 border border-panel-line transition"
+              >
+                🔁 Try a Different Team
+              </button>
+              <button
+                onClick={() => { playSfx("click"); leaveToLobby(); }}
+                className="text-xs px-3 py-1.5 rounded-lg bg-panel-raised hover:bg-panel-line text-slate-300 border border-panel-line transition"
+              >
+                Return to Lobby
+              </button>
+            </div>
+          )}
           {opponentStatus && (
             <div className="mb-3 px-4 py-2 rounded-xl bg-amber-900/40 border border-amber-700 text-amber-200 text-sm">
               {(opponentStatus.role === "A" ? leftName : rightName) || "Your opponent"} disconnected — waiting up to{" "}

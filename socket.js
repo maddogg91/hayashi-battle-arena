@@ -22,7 +22,10 @@ import { mongoEnabled } from "./db/mongo.js";
  *   selections: { A: null|arrayOf5, B: null|arrayOf5 },
  *   chat: [{ id, text, name, role, ts }],
  *   cutsceneAck: { A:false, B:false },
- *   isPrivate: boolean, passcode: string|null
+ *   isPrivate: boolean, passcode: string|null,
+ *   practice: boolean — solo practice room (see startPractice()): seat B
+ *     is never a real socket, just a sentinel ("__DUMMY__") holding 5
+ *     Training Dummy units that only ever Rest.
  * }
  */
 
@@ -101,6 +104,7 @@ function ensureRoom(roomId) {
     // Timer ids for a seat currently in its reconnect grace window (see
     // RECONNECT_GRACE_MS) — cleared the moment that role rejoins.
     disconnectTimers: { A: null, B: null },
+    practice: false,
   };
   return rooms[roomId];
 }
@@ -150,6 +154,12 @@ function clearDisconnectTimer(room, role) {
 function startDisconnectGrace(io, roomId, role) {
   const room = rooms[roomId];
   if (!room) return;
+  // No real opponent to protect in a practice room — clean up right away
+  // instead of holding a 30s grace window open for a seat nobody occupies.
+  if (room.practice) {
+    dropFromRoom(io, roomId, role);
+    return;
+  }
   const other = room.players[opponentRole(role)];
   const opponentSeated = other && other !== "__LEFT__";
   if (!opponentSeated) {
@@ -177,7 +187,10 @@ function maybeCleanupRoom(roomId) {
   const r = rooms[roomId];
   if (!r) return;
   const aliveA = r.players.A && r.players.A !== "__LEFT__";
-  const aliveB = r.players.B && r.players.B !== "__LEFT__";
+  // A practice room's seat B is never a real occupant (see startPractice())
+  // — its "__DUMMY__" sentinel would otherwise look permanently "alive"
+  // here and leak the room forever once the solo player leaves.
+  const aliveB = !r.practice && r.players.B && r.players.B !== "__LEFT__";
   if (!aliveA && !aliveB) {
     if (r.isPrivate && r.passcode) delete passcodeRooms[r.passcode];
     delete rooms[roomId];
@@ -258,6 +271,69 @@ function enqueueOrPair(io, socket, name) {
     waitQueue.push(socket);
   }
   socket.emit("queued");
+}
+
+/* -------------------- Practice mode -------------------- */
+// A "Training Dummy" pick deliberately isn't in data/characters.csv or
+// data/moves.csv — hydrateTeam() in game/engine.js falls back to the raw
+// pick object when a name isn't found in the roster, and movesByChar[name]
+// resolves to an empty list, so the dummy naturally ends up with ONLY the
+// universal Rest fallback skill. No engine changes needed at all for
+// "never attacks" — it's simply never given anything else to use.
+function dummyPick(i) {
+  return {
+    name: `Training Dummy ${i + 1}`,
+    type: "Training Dummy",
+    guild: "",
+    img: "🎯",
+    description: "A stationary practice target. Never attacks — only rests.",
+    spd: 1,
+  };
+}
+function dummyTeam() {
+  return Array.from({ length: 5 }, (_, i) => dummyPick(i));
+}
+
+// Drives every one of the dummies' turns the instant it's their turn, so
+// the solo player never has to wait on (or manually play out) an opponent
+// that only ever rests. Loops in case of ties/edge cases that could hand
+// the dummies more than one consecutive turn.
+function autoPlayDummies(roomId) {
+  let game = getGame(roomId);
+  while (game && !game.over && game.actor && game.actor.role === "B") {
+    game = handleMove(roomId, "B", { move: "rest", target: null });
+  }
+  return game;
+}
+
+// Solo practice: the player fills seat A as normal, but seat B is never a
+// real socket — see the room-shape comment above and dummyTeam()/
+// autoPlayDummies() for how that seat plays itself out.
+function startPractice(io, socket, name) {
+  safeLeaveQueue(socket);
+  leaveSoloPrivateWait(socket);
+
+  socket.data.name = (name || socket.data?.name || "Player").slice(0, 40) || "Player";
+
+  const roomId = `pr_${rid(6)}`;
+  const room = ensureRoom(roomId);
+  room.practice = true;
+  room.players.A = socket.id;
+  room.players.B = "__DUMMY__";
+  room.status = "select";
+  room.names.A = socket.data.name;
+  room.names.B = "Training Dummies";
+  room.userIds.A = socket.data.userId || null;
+  room.userIds.B = null;
+
+  socket.data.roomId = roomId;
+  socket.data.role = "A";
+  socket.join(roomId);
+
+  emitMatched(io, socket, roomId, "A");
+  socket.emit("playerNames", room.names);
+  socket.emit("chatHistory", room.chat);
+  markPlaying(io, socket);
 }
 
 /* -------------------- Private matchmaking -------------------- */
@@ -460,6 +536,9 @@ export function initSocket(httpServer) {
     );
     socket.on("cancelPrivateMatch", () => cancelPrivateMatch(io, socket));
 
+    /* -------- Practice mode (solo vs. Training Dummies) -------- */
+    socket.on("startPractice", ({ name } = {}) => startPractice(io, socket, name));
+
     /* -------- Manual room join (legacy/manual flow, also used to rebind a
        reconnected socket back to its room mid-match — see the client's
        "joinRoom" re-emit on connect) -------- */
@@ -533,9 +612,22 @@ export function initSocket(httpServer) {
       // constrain to 5 picks
       room.selections[role] = characters.slice(0, 5);
 
+      // Practice rooms have no real second player — the moment the solo
+      // player locks in their team, auto-fill the Training Dummy roster so
+      // the match starts immediately instead of waiting on an opponent.
+      if (room.practice && role === "A" && !room.selections.B) {
+        room.selections.B = dummyTeam();
+      }
+
       if (room.selections.A && room.selections.B) {
         const gameState = initGame(room.selections, roomId, room.names);
-        if (gameState.cutscene && gameState.cutscene.length) {
+        if (room.practice) {
+          // Dummies have no dialogue worth a cutscene for — skip straight
+          // to battle, then let them rest through any turns they'd act on
+          // before the player's own first move.
+          room.status = "battle";
+          io.to(roomId).emit("startGame", autoPlayDummies(roomId) || gameState);
+        } else if (gameState.cutscene && gameState.cutscene.length) {
           room.status = "cutscene";
           room.cutsceneAck = { A: false, B: false };
           io.to(roomId).emit("preBattleDialogue", { cutscene: gameState.cutscene });
@@ -567,13 +659,21 @@ export function initSocket(httpServer) {
     socket.on("playerMove", ({ roomId, move, role }) => {
       const room = rooms[roomId];
       if (!room) return;
-      const state = handleMove(roomId, role, move);
+      let state = handleMove(roomId, role, move);
+      // Play out any Training Dummy turns that follow immediately so the
+      // solo player never has to sit through (or manually trigger) their
+      // opponent's turn.
+      if (room.practice) state = autoPlayDummies(roomId) || state;
       io.to(roomId).emit("updateGame", state);
       if (state?.over && room.status !== "over") {
         room.status = "over";
-        recordMatchOutcome(room, state).catch((err) => {
-          console.error("Failed to record match outcome:", err.message);
-        });
+        // Practice matches are for trying out team comps — they're never
+        // recorded as a win/loss or counted toward character usage.
+        if (!room.practice) {
+          recordMatchOutcome(room, state).catch((err) => {
+            console.error("Failed to record match outcome:", err.message);
+          });
+        }
       }
     });
 

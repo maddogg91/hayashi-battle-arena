@@ -20,6 +20,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
   const [code, setCode] = useState("");
   const [privStatus, setPrivStatus] = useState("");
   const [loadingPrivate, setLoadingPrivate] = useState(false);
+  const [loadingPractice, setLoadingPractice] = useState(false);
   const [waitingCode, setWaitingCode] = useState("");
   const [showReportModal, setShowReportModal] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
@@ -86,6 +87,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
       setRole(role);
       setLoadingPublic(false);
       setLoadingPrivate(false);
+      setLoadingPractice(false);
       setPrivStatus("");
       onReady?.();
     };
@@ -155,6 +157,15 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
     setPrivStatus("");
     setWaitingCode("");
     setLoadingPrivate(false);
+  };
+
+  // Solo practice: draft a team of 5 and fight 5 Training Dummies that only
+  // ever Rest. No opponent to wait for, so "matched" fires back almost
+  // immediately — see socket.js's startPractice().
+  const startPractice = () => {
+    if (!hasName) return saveName();
+    setLoadingPractice(true);
+    socket.emit("startPractice", { name: name.trim() });
   };
 
   if (!hasName) {
@@ -327,6 +338,26 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
           </div>
         </div>
 
+        {/* Practice Mode */}
+        <div className="panel p-5 sm:p-6">
+          <h3 className="font-display text-lg font-bold text-slate-100 mb-1.5">🏋️ Practice Mode</h3>
+          <p className="text-sm text-slate-400 mb-4">
+            Draft a team of 5 and battle 5 Training Dummies that only ever
+            Rest — never attack — so you can freely try out different
+            fighter combinations. No opponent, no cutscene, and nothing is
+            recorded to your record or the leaderboard. Leave for the lobby
+            or swap in a different team at any point.
+          </p>
+          <motion.button
+            whileTap={!loadingPractice ? tap : undefined}
+            onClick={() => { if (!loadingPractice) playSfx("confirm"); startPractice(); }}
+            disabled={loadingPractice}
+            className={btnPrimary}
+          >
+            {loadingPractice ? "Starting…" : "Start Practice Match"}
+          </motion.button>
+        </div>
+
         <div className="panel p-5 sm:p-6">
           <button
             onClick={() => setShowHowToPlay((v) => !v)}
@@ -429,6 +460,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
           </button>
           {showWhatsNew && (
             <ul className="mt-3 text-sm text-slate-300 space-y-1.5 list-disc list-inside">
+              <li>New Practice Mode (below) — draft a team of 5 and fight 5 Training Dummies that only ever Rest, so you can freely test out combinations. No cutscene, no opponent, and nothing counts toward your record or the leaderboard. Swap in a different team or head back to the lobby with one click, any time, mid-battle included.</li>
               <li>Battle animations and sound effects — hits shake the target and pop a floating damage number, heals pop a green number, a new status effect flashes the portrait, knockouts flash white, and the acting fighter's portrait pulses gold. All sound effects (hits, heals, statuses, dodges, KOs, turn pings, menu clicks, and a victory/defeat fanfare) are synthesized in-browser — no audio files — and can be muted with the 🔊 button at the top of the lobby. Screens now fade in instead of switching abruptly, and buttons/cards have a bit more tactile feedback.</li>
               <li>New Battle Summary screen after every match — a winner banner, an MVP card (based on a composite "Impact Score": damage dealt + damage guarded + healing done + KOs×40, not just who got the finishing blow), and a full per-character stat table for both teams covering damage dealt, damage guarded, damage taken, healing done, healing received, KOs, and every status effect they were afflicted with.</li>
               <li>Optional accounts — log in or sign up (link next to your name) to get a Profile with your win/loss record and per-character stats, and a place on the new Leaderboard. Guest play still works exactly like before; logging in is never required.</li>
