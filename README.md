@@ -115,6 +115,16 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 
 ## Changelog
 
+### 2026-09-05 — Sai rework: Chain Dance, Opponent Drag
+
+- **Chain Dance** no longer feeds a specific move — it's now a persistent
+  passive that boosts Sai's overall damage output by 15% per stack (up to
+  3 stacks, +45% at max), applying to any damage he deals while stacked.
+- **Half-moon Melee is now Opponent Drag**: deals 15 unguardable damage
+  to one opponent, and if they're currently bound by Binding Chain, Sai
+  also becomes invulnerable for one action. No longer requires Chain
+  Dance stacks to use, and its cost is reduced 65→40 SP.
+
 ### 2026-09-05 — Balance pass: Liara, Ben, Sai, Kairu, Arthur, Sora
 
 - **Liara's Sonic Edge**: cost reduced 50→40 SP, damage increased 25→45.
