@@ -35,6 +35,7 @@ const MODE_LABELS = {
   tempo: "Tempo of Victory",
   disrupted: "Disrupting Symphony",
   toughbody: "Tough Body",
+  chainbackfire: "Chain Backfire",
 };
 
 // Mirrors EFFECT_LABEL in game/engine.js — used for the per-status-type

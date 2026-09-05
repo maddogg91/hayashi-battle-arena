@@ -120,8 +120,9 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 - **Liara's Sonic Edge**: cost reduced 50→40 SP, damage increased 25→45.
 - **Ben's Fist of the King** can no longer be recast while already active
   (mirrors the same restriction already on his Ki Control).
-- **Sai's Binding Chain** now deals Sai 25 recoil damage every time he
-  uses it, on top of binding the target.
+- **Sai's Binding Chain** now leaves Sai exposed for its own 2-turn
+  duration, taking 25% more damage from anything that hits him while it's
+  active.
 - **Kairu's Imbue with Light** dodge chance reduced 50%→25%.
 - **Arthur's Direct Shot** damage reduced 40→30 normal, 55→45 with
   Lock-on active.
