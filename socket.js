@@ -154,12 +154,6 @@ function clearDisconnectTimer(room, role) {
 function startDisconnectGrace(io, roomId, role) {
   const room = rooms[roomId];
   if (!room) return;
-  // No real opponent to protect in a practice room — clean up right away
-  // instead of holding a 30s grace window open for a seat nobody occupies.
-  if (room.practice) {
-    dropFromRoom(io, roomId, role);
-    return;
-  }
   const other = room.players[opponentRole(role)];
   const opponentSeated = other && other !== "__LEFT__";
   if (!opponentSeated) {
