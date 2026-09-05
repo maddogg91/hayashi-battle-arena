@@ -14,7 +14,7 @@ export default function Leaderboard({ onBack }) {
   }, []);
 
   return (
-    <div className="flex flex-col items-center py-6 sm:py-10 px-4 sm:px-6">
+    <div className="screen-fade flex flex-col items-center py-6 sm:py-10 px-4 sm:px-6">
       <div className="w-full max-w-2xl flex justify-end mb-2">
         {onBack && (
           <button

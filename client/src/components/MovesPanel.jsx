@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { stackLabel, modeLabel } from "../utils/statusLabels";
+import { playSfx } from "../utils/sfx";
 
 // Hoisted out of MovesPanel: if these were defined inside the component
 // body, React would see a brand-new component type on every render (any SP
@@ -37,9 +39,14 @@ function InfoIcon({ skill, onPreview, onClearPreview }) {
 function MoveButton({ skill, isPending, isDisabled, isPranked, effectiveCost, onUse, onPreview, onClearPreview }) {
   return (
     <div className="flex items-center gap-1">
-      <button
-        onClick={() => onUse(skill.key)}
+      <motion.button
+        onClick={() => {
+          if (isDisabled) return;
+          playSfx("click");
+          onUse(skill.key);
+        }}
         disabled={isDisabled}
+        whileTap={!isDisabled ? { scale: 0.93 } : undefined}
         title={isPranked ? "Disabled this turn by Prank" : undefined}
         className={`px-3.5 py-2.5 rounded-xl text-sm font-semibold transition
           ${isDisabled
@@ -51,7 +58,7 @@ function MoveButton({ skill, isPending, isDisabled, isPranked, effectiveCost, on
       >
         {skill.label}
         <span className="ml-1.5 text-xs opacity-70">{isPranked ? "Disabled" : `${effectiveCost} SP`}</span>
-      </button>
+      </motion.button>
       <InfoIcon skill={skill} onPreview={onPreview} onClearPreview={onClearPreview} />
     </div>
   );
@@ -216,17 +223,19 @@ export default function MovesPanel({
               {pendingMove && (
                 <div className="flex shrink-0 gap-2">
                   {onCancelPending && (
-                    <button
-                      onClick={onCancelPending}
+                    <motion.button
+                      onClick={() => { playSfx("click"); onCancelPending(); }}
+                      whileTap={{ scale: 0.93 }}
                       className="text-xs px-2.5 py-1.5 rounded-lg bg-panel-line hover:bg-panel-line/70 transition"
                     >
                       Cancel
-                    </button>
+                    </motion.button>
                   )}
                   {onConfirm && (
-                    <button
-                      onClick={onConfirm}
+                    <motion.button
+                      onClick={() => { if (canConfirm) playSfx("confirm"); onConfirm(); }}
                       disabled={!canConfirm}
+                      whileTap={canConfirm ? { scale: 0.93 } : undefined}
                       className={`text-xs px-3.5 py-1.5 rounded-lg font-semibold transition
                         ${canConfirm
                           ? "bg-teamA-500 hover:bg-teamA-400 text-ink-950"
@@ -234,7 +243,7 @@ export default function MovesPanel({
                       `}
                     >
                       Confirm
-                    </button>
+                    </motion.button>
                   )}
                 </div>
               )}

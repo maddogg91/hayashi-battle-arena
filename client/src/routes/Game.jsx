@@ -11,6 +11,8 @@ import PreBattleCutscene from "../components/PreBattleCutscene";
 import ChatPanel from "../components/ChatPanel";
 import LobbyUsersPanel from "../components/LobbyUsersPanel";
 import BattleSummary from "../components/BattleSummary";
+import { useBattleEffects } from "../hooks/useBattleEffects";
+import { playSfx } from "../utils/sfx";
 
 // Mirrors requirementsMet() in game/engine.js — mostly a belt-and-suspenders
 // guard since MovesPanel already greys out buttons that fail this, but
@@ -268,12 +270,25 @@ export default function Game() {
     game?.actor ? game.teams[game.actor.role][game.actor.i] : null;
   const iAmActing = !!(game?.actor && role === game.actor.role);
 
+  // Diffs consecutive game states to drive hit/heal/status/KO animations and
+  // sound effects — see useBattleEffects for how it derives these from pure
+  // HP/effects deltas without the server emitting any dedicated event.
+  const { floaters, hitNonce, koNonce, statusFlash } = useBattleEffects(game, log, roomId);
+
   // Clear any in-progress targeting whenever the acting unit changes (new
   // turn, or the opponent started acting instead of us).
   useEffect(() => {
     setTarget(null);
     setPendingMove(null);
   }, [game?.actor?.role, game?.actor?.i]);
+
+  // A soft ping the moment it becomes your own turn to act — distinct from
+  // the hit/heal/status cues above since it's about whose turn it is, not
+  // an HP change.
+  useEffect(() => {
+    if (iAmActing && !game?.over) playSfx("turnStart");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [iAmActing, game?.actor?.i, game?.actor?.role]);
 
   // Submits whatever move is currently armed. This is the ONLY path that
   // emits to the server — selecting a move or a target never fires on its
@@ -359,7 +374,7 @@ export default function Game() {
   // ---- Renders ----
   if (reconnecting) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center px-6">
+      <div className="screen-fade flex flex-col items-center justify-center min-h-screen gap-4 text-center px-6">
         <div className="h-10 w-10 rounded-full border-4 border-gold-500/30 border-t-gold-400 animate-spin" />
         <p className="text-lg font-display font-semibold text-gold-300">Reconnecting to your match…</p>
         <p className="text-sm text-slate-400 max-w-sm">
@@ -383,7 +398,7 @@ export default function Game() {
 
   if (inLobby) {
     return (
-      <div className="grid lg:grid-cols-3 gap-5 sm:gap-6 p-4 sm:p-6">
+      <div className="screen-fade grid lg:grid-cols-3 gap-5 sm:gap-6 p-4 sm:p-6">
         <div className="lg:col-span-2">
           {rejoinNotice && (
             <div className="mb-4 px-4 py-3 rounded-xl bg-amber-900/40 border border-amber-700 text-amber-200 text-sm flex items-start justify-between gap-3">
@@ -436,7 +451,7 @@ export default function Game() {
   // CharacterSelect.
   if (!team && !game) {
     return (
-      <div className="grid lg:grid-cols-3 gap-5 sm:gap-6 p-4 sm:p-6">
+      <div className="screen-fade grid lg:grid-cols-3 gap-5 sm:gap-6 p-4 sm:p-6">
         <div className="lg:col-span-2">
           <CharacterSelect
             roomId={roomId}
@@ -463,7 +478,7 @@ export default function Game() {
 
   if (team && waiting && !game && !cutscene) {
     return (
-      <div className="grid lg:grid-cols-3 gap-5 sm:gap-6 p-4 sm:p-6">
+      <div className="screen-fade grid lg:grid-cols-3 gap-5 sm:gap-6 p-4 sm:p-6">
         <div className="lg:col-span-2 flex flex-col items-center justify-center text-center mt-6 sm:mt-10 gap-3">
           <div className="h-9 w-9 rounded-full border-4 border-gold-500/30 border-t-gold-400 animate-spin mb-1" />
           <h2 className="font-display text-2xl font-bold text-gold-300">Hayashi Academy Arena</h2>
@@ -493,7 +508,7 @@ export default function Game() {
 
   if (cutscene && !game) {
     return (
-      <div className="grid lg:grid-cols-3 gap-5 sm:gap-6 p-4 sm:p-6">
+      <div className="screen-fade grid lg:grid-cols-3 gap-5 sm:gap-6 p-4 sm:p-6">
         <div className="lg:col-span-2">
           <PreBattleCutscene
             cutscene={cutscene}
@@ -523,10 +538,11 @@ export default function Game() {
       B: role === "B" ? myName : names.B,
     };
     return (
-      <div className="grid lg:grid-cols-3 gap-5 sm:gap-6 p-4 sm:p-6">
+      <div className="screen-fade grid lg:grid-cols-3 gap-5 sm:gap-6 p-4 sm:p-6">
         <BattleSummary
           game={game}
           names={summaryNames}
+          role={role}
           replayId={replayId}
           log={log}
           onSaveReplay={() => socket.emit("saveReplay", { roomId })}
@@ -556,7 +572,7 @@ export default function Game() {
     const rightName = role === "B" ? myName : names.B;
 
     return (
-      <div className="grid lg:grid-cols-3 gap-5 sm:gap-6 p-4 sm:p-6">
+      <div className="screen-fade grid lg:grid-cols-3 gap-5 sm:gap-6 p-4 sm:p-6">
         <div className="lg:col-span-2">
           <h1 className="font-display text-2xl sm:text-3xl font-bold mb-1 text-gold-300">
             Battle Arena — 5v5
@@ -588,6 +604,12 @@ export default function Game() {
               selected={target?.role === role ? target.index : null}
               onSelect={(i) => selectMyTarget(role, i)}
               highlight={iAmActing && pendingMove?.desiredRole === role}
+              roleKey={role}
+              actingIndex={game.actor?.role === role ? game.actor.i : null}
+              floaters={floaters}
+              hitNonce={hitNonce}
+              koNonce={koNonce}
+              statusFlash={statusFlash}
             />
             <TeamGrid
               label={`Opponent (${enemyRole})`}
@@ -596,6 +618,12 @@ export default function Game() {
               selected={target?.role === enemyRole ? target.index : null}
               onSelect={(i) => selectMyTarget(enemyRole, i)}
               highlight={iAmActing && pendingMove?.desiredRole === enemyRole}
+              roleKey={enemyRole}
+              actingIndex={game.actor?.role === enemyRole ? game.actor.i : null}
+              floaters={floaters}
+              hitNonce={hitNonce}
+              koNonce={koNonce}
+              statusFlash={statusFlash}
             />
           </div>
 

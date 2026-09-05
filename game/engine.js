@@ -197,8 +197,8 @@ function applyDamage(attacker, defender, raw, opts = {}) {
   if (defender.effects.mirror > 0) {
     defender.effects.mirror = 0;
     const healAmt = Math.max(1, Math.floor(dmg * 0.25));
-    healUnit(defender, healAmt);
-    defender.stats.healingDone += healAmt; // self-triggered — the mirror is the defender's own effect
+    const actualHeal = healUnit(defender, healAmt);
+    defender.stats.healingDone += actualHeal; // self-triggered — the mirror is the defender's own effect
     defender.stats.damageGuarded += raw;
     notes.push(`${defender.name}'s mirror negates the attack and heals for ${healAmt}.`);
     return { dmg: 0, notes };
