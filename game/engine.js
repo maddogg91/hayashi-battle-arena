@@ -131,6 +131,13 @@ function dmgReductionOf(u) {
   const modes = u.modes || {};
   return Object.values(modes).reduce((mult, m) => (m && m.turns > 0 && m.dmgReduction ? mult * (1 - m.dmgReduction) : mult), 1);
 }
+// Multiplicative incoming-damage INCREASE from active modes — the mirror
+// image of dmgReductionOf above (e.g. Sai's Binding Chain leaving him
+// exposed for its duration). Multiple active sources stack multiplicatively.
+function dmgVulnerabilityOf(u) {
+  const modes = u.modes || {};
+  return Object.values(modes).reduce((mult, m) => (m && m.turns > 0 && m.dmgVulnerability ? mult * (1 + m.dmgVulnerability) : mult), 1);
+}
 // Multiplicative SP-cost surcharge from active modes (e.g. Lyra's Hera
 // Takeover doubling her own SP costs while active).
 function costMultOf(u) {
@@ -215,6 +222,16 @@ function applyDamage(attacker, defender, raw, opts = {}) {
   if (vulnAmp > 0) {
     const amplified = Math.ceil(dmg * (1 + vulnAmp));
     notes.push(`${defender.name}'s vulnerability amplifies the hit (+${amplified - dmg}).`);
+    dmg = amplified;
+  }
+  // Mode-based incoming-damage increase (e.g. Sai left exposed by his own
+  // Binding Chain for its duration) — same ordering rationale as the
+  // stack-based vulnerability above, applied before armor/shield/fortress
+  // reductions act on the already-amplified hit.
+  const modeVuln = dmgVulnerabilityOf(defender);
+  if (modeVuln > 1) {
+    const amplified = Math.ceil(dmg * modeVuln);
+    notes.push(`${defender.name}'s exposure amplifies the hit (+${amplified - dmg}).`);
     dmg = amplified;
   }
   // Persistent incoming-damage-reduction stacks (Kenshin's Rock Armor,
@@ -771,6 +788,7 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
           trueStrike: !!step.trueStrike,
           extraAction: !!step.extraAction,
           dmgReduction: step.dmgReduction != null ? Number(step.dmgReduction) : undefined,
+          dmgVulnerability: step.dmgVulnerability != null ? Number(step.dmgVulnerability) : undefined,
           costMultiplier: step.costMultiplier != null ? Number(step.costMultiplier) : undefined,
           hotHeal: step.hotHeal != null ? Number(step.hotHeal) : undefined,
           hotSp: step.hotSp != null ? Number(step.hotSp) : undefined,
