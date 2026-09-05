@@ -97,3 +97,19 @@
     border-radius: 1rem;
   }
 }
+
+@layer utilities {
+  /* A light fade-and-rise applied to the outer wrapper of each top-level
+     screen (lobby, character select, cutscene, battle, summary, ...) in
+     Game.jsx, so switching between them reads as a transition instead of
+     an abrupt swap. Plain CSS rather than framer-motion here since these
+     are one-shot mount animations with no interactive/imperative control
+     needed — no need for JS to drive it. */
+  @keyframes screen-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .screen-fade {
+    animation: screen-fade-in 0.28s ease-out both;
+  }
+}

@@ -1,5 +1,6 @@
-import { motion } from "framer-motion";
-import { stackLabel, modeLabel } from "../utils/statusLabels";
+import { useEffect, useRef } from "react";
+import { motion, AnimatePresence, useAnimation } from "framer-motion";
+import { stackLabel, modeLabel, statusLabel } from "../utils/statusLabels";
 import CharIcon from "./CharIcon";
 
 const EFFECT_CHIPS = [
@@ -16,6 +17,95 @@ const EFFECT_CHIPS = [
   ["mirror", "Mirror", "bg-teal-500/25 text-teal-300"],
 ];
 
+// Color a status flash by roughly the same palette as its EFFECT_CHIPS
+// entry, so a stun flash reads "hp-ish red" and a heal-adjacent one like
+// shield reads "teamB-ish blue" — consistent with the chip already shown.
+const FLASH_COLOR = {
+  stun: "bg-hp-400/40",
+  bind: "bg-fuchsia-400/40",
+  burn: "bg-burn-400/40",
+  shield: "bg-teamB-400/40",
+  reflect: "bg-indigo-400/40",
+  invuln: "bg-sp-400/40",
+  charm: "bg-pink-400/40",
+  confuse: "bg-purple-400/40",
+  expose: "bg-orange-400/40",
+  barrier: "bg-cyan-400/40",
+  mirror: "bg-teal-400/40",
+};
+
+// Wraps a card's contents so a hit can shake it and a status/KO flash can
+// tint it without fighting the outer motion.button's own scale/opacity
+// animation (selection, death) — each concern gets its own animation layer.
+function EffectLayer({ hitNonce, koNonce, statusFlash, floaters, children }) {
+  const shakeControls = useAnimation();
+  const flashControls = useAnimation();
+  const prevHit = useRef(hitNonce);
+  const prevKo = useRef(koNonce);
+  const prevStatus = useRef(statusFlash?.nonce);
+
+  useEffect(() => {
+    if (hitNonce && hitNonce !== prevHit.current) {
+      prevHit.current = hitNonce;
+      shakeControls.start({ x: [0, -6, 6, -4, 4, 0], transition: { duration: 0.35, ease: "easeInOut" } });
+    }
+  }, [hitNonce, shakeControls]);
+
+  useEffect(() => {
+    if (koNonce && koNonce !== prevKo.current) {
+      prevKo.current = koNonce;
+      flashControls.start({
+        backgroundColor: ["rgba(255,255,255,0)", "rgba(255,255,255,0.85)", "rgba(255,255,255,0)"],
+        transition: { duration: 0.5, ease: "easeOut" },
+      });
+    }
+  }, [koNonce, flashControls]);
+
+  useEffect(() => {
+    if (statusFlash?.nonce && statusFlash.nonce !== prevStatus.current) {
+      prevStatus.current = statusFlash.nonce;
+      flashControls.start({
+        opacity: [0, 1, 0],
+        transition: { duration: 0.45, ease: "easeOut" },
+      });
+    }
+  }, [statusFlash, flashControls]);
+
+  return (
+    <motion.div animate={shakeControls} className="relative">
+      <motion.div
+        aria-hidden
+        initial={{ opacity: 0 }}
+        animate={flashControls}
+        className={`pointer-events-none absolute inset-0 rounded-xl z-10 ${
+          statusFlash?.type ? FLASH_COLOR[statusFlash.type] || "bg-white/40" : ""
+        }`}
+      />
+      {children}
+      {floaters && floaters.length > 0 && (
+        <div className="pointer-events-none absolute inset-x-0 top-2 flex flex-col items-center z-20">
+          <AnimatePresence>
+            {floaters.map((f) => (
+              <motion.span
+                key={f.id}
+                initial={{ opacity: 0, y: 0, scale: 0.8 }}
+                animate={{ opacity: 1, y: -30, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.9, ease: "easeOut" }}
+                className={`text-xs sm:text-sm font-display font-bold drop-shadow-md ${
+                  f.kind === "heal" ? "text-teamA-300" : "text-hp-400"
+                }`}
+              >
+                {f.text}
+              </motion.span>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 export default function TeamGrid({
   label,
   team,
@@ -23,6 +113,12 @@ export default function TeamGrid({
   selected,
   onSelect, // (index) => void
   highlight = false, // true while a pending move needs a target from this grid
+  roleKey, // "A" | "B" — this grid's canonical role, for keying battle-effect props below
+  actingIndex = null, // index of the unit whose turn it currently is, if it's on this grid
+  floaters = {}, // { [`${roleKey}:${i}`]: [{id, text, kind}] } from useBattleEffects
+  hitNonce = {}, // { [`${roleKey}:${i}`]: number }
+  koNonce = {}, // { [`${roleKey}:${i}`]: number }
+  statusFlash = {}, // { [`${roleKey}:${i}`]: { type, nonce } }
 }) {
   return (
     <div
@@ -40,6 +136,7 @@ export default function TeamGrid({
         {team.map((c, i) => {
           const dead = c.hp <= 0;
           const isSel = selected === i;
+          const isActing = actingIndex === i;
           const e = c.effects || {};
           const stacks = Object.entries(c.stacks || {}).filter(([, v]) => v > 0);
           const modes = Object.entries(c.modes || {}).filter(([, m]) => m?.turns > 0);
@@ -47,6 +144,7 @@ export default function TeamGrid({
           const charmed = e.charm > 0;
           const taunted = c.taunt && c.taunt.turns > 0;
           const pranked = c.disabledSkill && c.disabledSkill.turns > 0;
+          const key = roleKey ? `${roleKey}:${i}` : null;
           return (
             <motion.button
               key={`${c.name}-${i}`}
@@ -55,11 +153,20 @@ export default function TeamGrid({
               initial={{ scale: 0.95, opacity: 0.9 }}
               animate={{ scale: isSel ? 1.05 : 0.95, opacity: dead ? 0.45 : 1 }}
               transition={{ type: "spring", stiffness: 300, damping: 18 }}
+              whileTap={!dead ? { scale: 0.9 } : undefined}
               className={`rounded-xl p-1.5 sm:p-3 text-center border w-full
                 ${isSel ? "border-gold-400 bg-gold-500/10" : highlight && !dead ? "border-gold-500/60 animate-pulse bg-ink-950" : "border-panel-line bg-ink-950"}
+                ${isActing && !dead ? "ring-2 ring-gold-400/70 animate-pulse" : ""}
                 ${dead ? "grayscale" : ""}
               `}
+              title={activeEffects.length ? activeEffects.map(([k]) => statusLabel(k)).join(", ") : undefined}
             >
+              <EffectLayer
+                hitNonce={key ? hitNonce[key] : undefined}
+                koNonce={key ? koNonce[key] : undefined}
+                statusFlash={key ? statusFlash[key] : undefined}
+                floaters={key ? floaters[key] : undefined}
+              >
               <div className="text-3xl flex items-center justify-center h-7 sm:h-9">
                 <CharIcon img={c.img} alt={c.name} sizePx={32} />
               </div>
@@ -119,6 +226,7 @@ export default function TeamGrid({
                 />
               </div>
               <div className="text-[9px] sm:text-xs text-sp-400">{c.sp ?? 0}</div>
+              </EffectLayer>
             </motion.button>
           );
         })}

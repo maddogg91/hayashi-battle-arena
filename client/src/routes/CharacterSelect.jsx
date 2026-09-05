@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { socket, backendUrl } from "../api/socket";
 import CharIcon from "../components/CharIcon";
+import { playSfx } from "../utils/sfx";
 
 export default function CharacterSelect({ roomId, role, onSelect, onLeave }) {
   const [pool, setPool] = useState([]);
@@ -28,6 +29,7 @@ export default function CharacterSelect({ roomId, role, onSelect, onLeave }) {
 
   const toggleCharacter = (char) => {
     if (locked) return;
+    playSfx("click");
     const exists = selected.find((c) => c.name === char.name);
     if (exists) {
       setSelected((s) => s.filter((c) => c.name !== char.name));
@@ -38,6 +40,7 @@ export default function CharacterSelect({ roomId, role, onSelect, onLeave }) {
 
   const confirmSelection = () => {
     if (selected.length === 5 && !locked) {
+      playSfx("confirm");
       socket.emit("selectCharacter", { roomId, role, characters: selected });
       setLocked(true);
       onSelect(selected);
@@ -52,7 +55,7 @@ export default function CharacterSelect({ roomId, role, onSelect, onLeave }) {
       {onLeave && (
         <div className="w-full flex justify-end mb-3">
           <button
-            onClick={onLeave}
+            onClick={() => { playSfx("click"); onLeave(); }}
             className="text-xs px-3 py-1.5 rounded-lg bg-panel-raised hover:bg-panel-line text-slate-300 border border-panel-line transition"
           >
             Return to Lobby

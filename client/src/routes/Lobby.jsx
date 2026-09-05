@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { socket } from "../api/socket";
 import ReportBugModal from "../components/ReportBugModal";
 import AuthModal from "../components/AuthModal";
 import { getMe, logout as apiLogout } from "../api/auth";
+import { playSfx, isMuted, setMuted } from "../utils/sfx";
+
+const tap = { scale: 0.95 };
 
 const btnPrimary =
   "w-full bg-gradient-to-b from-gold-400 to-gold-500 hover:from-gold-300 hover:to-gold-400 text-ink-950 font-display font-bold text-base py-3 rounded-xl shadow-lg shadow-gold-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gold-500 disabled:to-gold-500 disabled:shadow-none";
@@ -22,6 +26,14 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
   const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authUser, setAuthUser] = useState(null); // null = guest/logged out
+  const [soundMuted, setSoundMuted] = useState(() => isMuted());
+
+  const toggleSound = () => {
+    const next = !soundMuted;
+    setMuted(next);
+    setSoundMuted(next);
+    if (!next) playSfx("click"); // audible confirmation only when turning sound back on
+  };
 
   const applyIdentity = (displayName) => {
     setName(displayName);
@@ -164,23 +176,33 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
             placeholder="e.g. Kobayashi"
             autoFocus
           />
-          <button onClick={saveName} className={btnPrimary}>
+          <motion.button whileTap={tap} onClick={() => { playSfx("confirm"); saveName(); }} className={btnPrimary}>
             Continue
-          </button>
+          </motion.button>
           <button
-            onClick={() => setShowAuthModal(true)}
+            onClick={() => { playSfx("click"); setShowAuthModal(true); }}
             className="w-full mt-3 text-sm text-gold-300 hover:text-gold-200 font-semibold transition"
           >
             Have an account? Log in instead
           </button>
         </div>
         <p className="mt-5 text-xs text-slate-500">Your name is stored locally for next time.</p>
-        <button
-          onClick={() => setShowReportModal(true)}
-          className="mt-4 text-xs px-3 py-1.5 rounded-lg bg-panel hover:bg-panel-raised text-slate-400 border border-panel-line transition"
-        >
-          🐛 Report a Bug
-        </button>
+        <div className="mt-4 flex items-center gap-2">
+          <button
+            onClick={() => { playSfx("click"); setShowReportModal(true); }}
+            className="text-xs px-3 py-1.5 rounded-lg bg-panel hover:bg-panel-raised text-slate-400 border border-panel-line transition"
+          >
+            🐛 Report a Bug
+          </button>
+          <button
+            onClick={toggleSound}
+            aria-label={soundMuted ? "Unmute sound effects" : "Mute sound effects"}
+            title={soundMuted ? "Sound off" : "Sound on"}
+            className="text-xs px-3 py-1.5 rounded-lg bg-panel hover:bg-panel-raised text-slate-400 border border-panel-line transition"
+          >
+            {soundMuted ? "🔇" : "🔊"}
+          </button>
+        </div>
         {showReportModal && (
           <ReportBugModal name={name || "Anonymous"} onClose={() => setShowReportModal(false)} />
         )}
@@ -196,34 +218,42 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
             Welcome, {name}!
             {!authUser && (
               <button
-                onClick={() => setShowAuthModal(true)}
+                onClick={() => { playSfx("click"); setShowAuthModal(true); }}
                 className="ml-3 align-middle text-xs px-2.5 py-1 rounded-lg bg-panel-line hover:bg-panel-line/70 text-slate-300 font-body font-normal transition"
               >
                 Log in
               </button>
             )}
           </h2>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
+            <button
+              onClick={toggleSound}
+              aria-label={soundMuted ? "Unmute sound effects" : "Mute sound effects"}
+              title={soundMuted ? "Sound off" : "Sound on"}
+              className={btnSecondary}
+            >
+              {soundMuted ? "🔇" : "🔊"}
+            </button>
             {onOpenLeaderboard && (
-              <button onClick={onOpenLeaderboard} className={btnSecondary}>
+              <button onClick={() => { playSfx("click"); onOpenLeaderboard(); }} className={btnSecondary}>
                 🏆 Leaderboard
               </button>
             )}
             {authUser && onOpenProfile && (
-              <button onClick={onOpenProfile} className={btnSecondary}>
+              <button onClick={() => { playSfx("click"); onOpenProfile(); }} className={btnSecondary}>
                 👤 <span className="hidden sm:inline">My </span>Profile
               </button>
             )}
             {onOpenGuide && (
-              <button onClick={onOpenGuide} className={btnSecondary}>
+              <button onClick={() => { playSfx("click"); onOpenGuide(); }} className={btnSecondary}>
                 📖 <span className="hidden sm:inline">Character </span>Guide
               </button>
             )}
-            <button onClick={() => setShowReportModal(true)} className={btnSecondary}>
+            <button onClick={() => { playSfx("click"); setShowReportModal(true); }} className={btnSecondary}>
               🐛 <span className="hidden sm:inline">Report a </span>Bug
             </button>
             {authUser && (
-              <button onClick={handleLogout} className={btnSecondary}>
+              <button onClick={() => { playSfx("click"); handleLogout(); }} className={btnSecondary}>
                 Log Out
               </button>
             )}
@@ -241,9 +271,14 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
             <p className="text-sm text-slate-400 mb-4">
               Enter the public queue and get paired with the next available player.
             </p>
-            <button onClick={findMatch} disabled={loadingPublic} className={btnPrimary}>
+            <motion.button
+              whileTap={!loadingPublic ? tap : undefined}
+              onClick={() => { if (!loadingPublic) playSfx("confirm"); findMatch(); }}
+              disabled={loadingPublic}
+              className={btnPrimary}
+            >
               {loadingPublic ? "Searching…" : "Find Match"}
-            </button>
+            </motion.button>
           </div>
 
           {/* Private Match */}
@@ -261,13 +296,14 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
               placeholder="e.g. HAYA1234"
               className="w-full mb-3 px-3.5 py-2.5 rounded-xl bg-ink-950 border border-panel-line focus:outline-none focus:border-gold-500 text-slate-100 placeholder:text-slate-500"
             />
-            <button
-              onClick={startPrivate}
+            <motion.button
+              whileTap={!(loadingPrivate || !code.trim()) ? tap : undefined}
+              onClick={() => { if (!loadingPrivate && code.trim()) playSfx("confirm"); startPrivate(); }}
               disabled={loadingPrivate || !code.trim()}
               className={btnPrimary}
             >
               {loadingPrivate ? "Connecting…" : "Start Private Match"}
-            </button>
+            </motion.button>
 
             {privStatus === "waiting" && (
               <div className="mt-3 text-sm text-slate-300 flex flex-wrap items-center gap-2">
@@ -276,7 +312,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
                   <span className="font-semibold text-gold-300">{waitingCode}</span>…
                 </span>
                 <button
-                  onClick={cancelPrivate}
+                  onClick={() => { playSfx("click"); cancelPrivate(); }}
                   className="text-xs px-3 py-1.5 rounded-lg bg-danger-500/90 hover:bg-danger-500 text-white font-semibold transition"
                 >
                   Cancel
@@ -393,6 +429,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
           </button>
           {showWhatsNew && (
             <ul className="mt-3 text-sm text-slate-300 space-y-1.5 list-disc list-inside">
+              <li>Battle animations and sound effects — hits shake the target and pop a floating damage number, heals pop a green number, a new status effect flashes the portrait, knockouts flash white, and the acting fighter's portrait pulses gold. All sound effects (hits, heals, statuses, dodges, KOs, turn pings, menu clicks, and a victory/defeat fanfare) are synthesized in-browser — no audio files — and can be muted with the 🔊 button at the top of the lobby. Screens now fade in instead of switching abruptly, and buttons/cards have a bit more tactile feedback.</li>
               <li>New Battle Summary screen after every match — a winner banner, an MVP card (based on a composite "Impact Score": damage dealt + damage guarded + healing done + KOs×40, not just who got the finishing blow), and a full per-character stat table for both teams covering damage dealt, damage guarded, damage taken, healing done, healing received, KOs, and every status effect they were afflicted with.</li>
               <li>Optional accounts — log in or sign up (link next to your name) to get a Profile with your win/loss record and per-character stats, and a place on the new Leaderboard. Guest play still works exactly like before; logging in is never required.</li>
               <li>New How to Play section (above) — a plain-language rundown of match flow, turn order, the SP economy, targeting, and every status effect in the game.</li>

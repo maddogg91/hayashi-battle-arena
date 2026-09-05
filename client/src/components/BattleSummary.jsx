@@ -1,16 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import CharIcon from "./CharIcon";
 import { statusLabel } from "../utils/statusLabels";
 import { findMVP } from "../utils/battleStats";
+import { playSfx } from "../utils/sfx";
 import ReplayViewer from "./ReplayViewer";
 
 function StatCell({ value, cls = "text-slate-100" }) {
   return <td className={`px-2 py-2 text-center text-sm font-semibold ${cls}`}>{value}</td>;
 }
 
-function TeamStatsTable({ label, team, accentCls }) {
+function TeamStatsTable({ label, team, accentCls, rowDelayStart }) {
   return (
-    <div className="panel p-3.5 sm:p-4 w-full overflow-x-auto">
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.35, duration: 0.4, ease: "easeOut" }}
+      className="panel p-3.5 sm:p-4 w-full overflow-x-auto"
+    >
       <h3 className={`font-display text-base sm:text-lg font-bold mb-3 ${accentCls}`}>{label}</h3>
       <table className="w-full min-w-[560px] border-collapse">
         <thead>
@@ -30,7 +37,13 @@ function TeamStatsTable({ label, team, accentCls }) {
             const s = u.stats || {};
             const statuses = Object.entries(s.statusesReceived || {}).filter(([, v]) => v > 0);
             return (
-              <tr key={`${u.name}-${i}`} className="border-b border-panel-line/60 last:border-0">
+              <motion.tr
+                key={`${u.name}-${i}`}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: rowDelayStart + i * 0.05, duration: 0.25, ease: "easeOut" }}
+                className="border-b border-panel-line/60 last:border-0"
+              >
                 <td className="px-2 py-2">
                   <div className="flex items-center gap-2 min-w-[120px]">
                     <div className={`w-6 h-6 shrink-0 flex items-center justify-center ${u.hp <= 0 ? "grayscale opacity-60" : ""}`}>
@@ -58,16 +71,16 @@ function TeamStatsTable({ label, team, accentCls }) {
                     </div>
                   )}
                 </td>
-              </tr>
+              </motion.tr>
             );
           })}
         </tbody>
       </table>
-    </div>
+    </motion.div>
   );
 }
 
-export default function BattleSummary({ game, names, replayId, log, onSaveReplay, onLeave }) {
+export default function BattleSummary({ game, names, role, replayId, log, onSaveReplay, onLeave }) {
   const [showLog, setShowLog] = useState(false);
 
   const teamA = game.teams?.A ?? [];
@@ -75,21 +88,46 @@ export default function BattleSummary({ game, names, replayId, log, onSaveReplay
   const aAlive = teamA.some((u) => u.hp > 0);
   const winnerRole = aAlive ? "A" : "B";
   const winnerName = winnerRole === "A" ? names.A : names.B;
+  const iWon = role ? role === winnerRole : null;
 
   const mvp = findMVP(game.teams);
 
+  // Fires exactly once when the summary screen first mounts (this component
+  // only ever mounts once per match, right as game.over flips true).
+  useEffect(() => {
+    playSfx(iWon === false ? "defeat" : "victory");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="lg:col-span-2">
-      <div className="text-center mb-5">
-        <div className="text-4xl mb-1">🏆</div>
+      <motion.div
+        initial={{ opacity: 0, y: -18, scale: 0.92 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 220, damping: 18 }}
+        className="text-center mb-5"
+      >
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.15, type: "spring", stiffness: 260, damping: 12 }}
+          className="text-4xl mb-1"
+        >
+          🏆
+        </motion.div>
         <h1 className="font-display text-2xl sm:text-3xl font-bold text-gold-300">
           Team {winnerRole} Wins!
         </h1>
         <p className="text-slate-400 text-sm mt-1">{winnerName || `Player ${winnerRole}`} takes the victory.</p>
-      </div>
+      </motion.div>
 
       {mvp && (
-        <div className="panel p-4 sm:p-5 mb-5 border-gold-500/40 bg-gradient-to-br from-gold-500/10 to-transparent">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25, duration: 0.4, ease: "easeOut" }}
+          className="panel p-4 sm:p-5 mb-5 border-gold-500/40 bg-gradient-to-br from-gold-500/10 to-transparent"
+        >
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 shrink-0 flex items-center justify-center rounded-xl bg-ink-950 border border-gold-500/40">
               <CharIcon img={mvp.unit.img} alt={mvp.unit.name} sizePx={40} />
@@ -108,34 +146,36 @@ export default function BattleSummary({ game, names, replayId, log, onSaveReplay
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       <div className="space-y-4">
-        <TeamStatsTable label={`Team A — ${names.A || "Player A"}`} team={teamA} accentCls="text-teamA-400" />
-        <TeamStatsTable label={`Team B — ${names.B || "Player B"}`} team={teamB} accentCls="text-teamB-400" />
+        <TeamStatsTable label={`Team A — ${names.A || "Player A"}`} team={teamA} accentCls="text-teamA-400" rowDelayStart={0.45} />
+        <TeamStatsTable label={`Team B — ${names.B || "Player B"}`} team={teamB} accentCls="text-teamB-400" rowDelayStart={0.45 + teamA.length * 0.05} />
       </div>
 
       <div className="mt-5 flex items-center justify-center gap-3">
-        <button
-          onClick={onSaveReplay}
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => { playSfx("confirm"); onSaveReplay(); }}
           className="px-5 py-2.5 rounded-xl bg-teamA-500 hover:bg-teamA-400 text-ink-950 font-display font-bold transition"
         >
           Save Replay
-        </button>
-        <button
-          onClick={onLeave}
+        </motion.button>
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => { playSfx("click"); onLeave(); }}
           className="px-5 py-2.5 rounded-xl bg-panel-raised hover:bg-panel-line text-slate-200 font-display font-bold border border-panel-line transition"
         >
           Back to Lobby
-        </button>
+        </motion.button>
       </div>
 
       {replayId && <ReplayViewer replayId={replayId} />}
 
       <div className="mt-6 panel p-4">
         <button
-          onClick={() => setShowLog((v) => !v)}
+          onClick={() => { playSfx("click"); setShowLog((v) => !v); }}
           className="w-full flex items-center justify-between font-display text-lg font-bold text-slate-100"
         >
           <span>Battle Log</span>

@@ -115,6 +115,29 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 
 ## Changelog
 
+### 2026-09-05 — Battle animations and sound effects
+
+- **Battle juice**: hits now shake the target's portrait and pop a floating
+  damage number, heals pop a floating green number, a newly-inflicted
+  status effect flashes the portrait in that status's color, and a
+  knockout flashes white. The currently-acting fighter's portrait pulses a
+  gold ring. All of this is derived client-side by diffing consecutive
+  server game states — no new server events needed.
+- **Sound effects**, synthesized on the fly with the Web Audio API (no
+  audio files, so nothing to license or download): hits, heals, status
+  effects, dodges/blocks, knockouts, a turn-start ping, menu clicks, move
+  confirms, and a victory/defeat fanfare on the summary screen. A 🔊/🔇
+  mute toggle (top of the lobby) persists across sessions.
+- **Screen transitions and polish**: every major screen (lobby, character
+  select, cutscene, battle, summary, profile, leaderboard, guide) now
+  fades in instead of switching abruptly; buttons and character cards get
+  a tactile press animation; the pre-battle cutscene's lines slide in one
+  at a time; and the Battle Summary's banner, MVP card, and stat rows
+  animate in with a short staggered entrance.
+- Fixed a stat-tracking bug from the previous release: Soren's Refraction
+  Mirror could over-count `healingDone` by the nominal heal amount instead
+  of the actual HP restored when the defender was already near full HP.
+
 ### 2026-09-04 — Post-match Battle Summary screen with MVP
 
 - **New Battle Summary screen** replaces the live battle view once a match
