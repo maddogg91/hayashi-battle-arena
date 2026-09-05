@@ -15,16 +15,15 @@ export function impactScore(stats) {
   );
 }
 
-// Finds the highest-impact unit across both teams. Returns null if neither
-// team has any living or dead units (shouldn't happen once a match starts).
-export function findMVP(teams) {
-  const all = [
-    ...(teams?.A || []).map((u) => ({ ...u, teamRole: "A" })),
-    ...(teams?.B || []).map((u) => ({ ...u, teamRole: "B" })),
-  ];
-  if (!all.length) return null;
-  return all.reduce((best, u) => {
+// Finds the highest-impact unit on the WINNING team only — MVP is a
+// distinction for a team that actually won the fight, not just whoever
+// racked up the biggest numbers while still losing. Returns null if the
+// winning team has no units (shouldn't happen once a match starts).
+export function findMVP(teams, winnerRole) {
+  const winningTeam = teams?.[winnerRole] || [];
+  if (!winningTeam.length) return null;
+  return winningTeam.reduce((best, u) => {
     const score = impactScore(u.stats);
-    return !best || score > best.score ? { unit: u, score, teamRole: u.teamRole } : best;
+    return !best || score > best.score ? { unit: u, score, teamRole: winnerRole } : best;
   }, null);
 }

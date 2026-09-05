@@ -137,6 +137,9 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 - Fixed a stat-tracking bug from the previous release: Soren's Refraction
   Mirror could over-count `healingDone` by the nominal heal amount instead
   of the actual HP restored when the defender was already near full HP.
+- Fixed MVP being awardable to a player on the *losing* team if they
+  happened to post the higher Impact Score — MVP is now only ever picked
+  from the winning team's roster.
 
 ### 2026-09-04 — Post-match Battle Summary screen with MVP
 

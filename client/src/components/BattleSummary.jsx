@@ -90,7 +90,7 @@ export default function BattleSummary({ game, names, role, replayId, log, onSave
   const winnerName = winnerRole === "A" ? names.A : names.B;
   const iWon = role ? role === winnerRole : null;
 
-  const mvp = findMVP(game.teams);
+  const mvp = findMVP(game.teams, winnerRole);
 
   // Fires exactly once when the summary screen first mounts (this component
   // only ever mounts once per match, right as game.over flips true).
