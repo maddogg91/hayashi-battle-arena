@@ -115,6 +115,23 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 
 ## Changelog
 
+### 2026-09-05 — Practice Mode
+
+- **New Practice Mode**, launched from the lobby: draft a team of 5 and
+  fight 5 Training Dummies that only ever Rest — they never attack — so
+  you can freely try out fighter combinations with no real opponent, no
+  pre-battle cutscene, and nothing recorded to your win/loss record,
+  character-usage stats, or the leaderboard.
+- A persistent **"Try a Different Team"** button is available throughout
+  a practice match (and on its Battle Summary screen) that instantly
+  tears down the current practice room and drops you straight back on
+  Character Select with a fresh one — no need to return to the lobby just
+  to test a different 5. **Return to Lobby** is also always one click
+  away, mid-battle included.
+- Training Dummies are generated on the fly server-side (never added to
+  the real character roster), and their turns play themselves out
+  automatically the instant it's their turn — no waiting.
+
 ### 2026-09-05 — Battle animations and sound effects
 
 - **Battle juice**: hits now shake the target's portrait and pop a floating

@@ -80,7 +80,7 @@ function TeamStatsTable({ label, team, accentCls, rowDelayStart }) {
   );
 }
 
-export default function BattleSummary({ game, names, role, replayId, log, onSaveReplay, onLeave }) {
+export default function BattleSummary({ game, names, role, replayId, log, onSaveReplay, onLeave, isPractice = false, onNewTeam }) {
   const [showLog, setShowLog] = useState(false);
 
   const teamA = game.teams?.A ?? [];
@@ -154,7 +154,16 @@ export default function BattleSummary({ game, names, role, replayId, log, onSave
         <TeamStatsTable label={`Team B — ${names.B || "Player B"}`} team={teamB} accentCls="text-teamB-400" rowDelayStart={0.45 + teamA.length * 0.05} />
       </div>
 
-      <div className="mt-5 flex items-center justify-center gap-3">
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+        {isPractice && onNewTeam && (
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => { playSfx("confirm"); onNewTeam(); }}
+            className="px-5 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-ink-950 font-display font-bold transition"
+          >
+            🔁 Try a Different Team
+          </motion.button>
+        )}
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => { playSfx("confirm"); onSaveReplay(); }}

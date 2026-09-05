@@ -3,7 +3,7 @@ import { socket, backendUrl } from "../api/socket";
 import CharIcon from "../components/CharIcon";
 import { playSfx } from "../utils/sfx";
 
-export default function CharacterSelect({ roomId, role, onSelect, onLeave }) {
+export default function CharacterSelect({ roomId, role, onSelect, onLeave, isPractice = false }) {
   const [pool, setPool] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [selected, setSelected] = useState([]);
@@ -65,8 +65,13 @@ export default function CharacterSelect({ roomId, role, onSelect, onLeave }) {
       <h2 className="font-display text-2xl sm:text-3xl font-bold text-gold-300 text-center">
         Select Your 5 Fighters
       </h2>
+      {isPractice && (
+        <span className="mb-1 text-xs px-2.5 py-1 rounded-full bg-gold-500/15 text-gold-300 font-semibold">
+          🏋️ Practice Mode — vs. Training Dummies
+        </span>
+      )}
       <p className="text-sm text-slate-400 mb-1">
-        {role ? `You are Player ${role}` : "Assigning role..."}
+        {isPractice ? "Draft any team to test it out." : role ? `You are Player ${role}` : "Assigning role..."}
       </p>
       <p className="text-sm font-semibold text-slate-300 mb-5">{selected.length}/5 selected</p>
 
