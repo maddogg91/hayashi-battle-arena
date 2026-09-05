@@ -127,6 +127,10 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 - **Arthur's Direct Shot** damage reduced 40→30 normal, 55→45 with
   Lock-on active.
 - **Sora's Wave Runner** evasion reduced 50%→25%.
+- **Jett's Kimura Special** description corrected (it previously described
+  Warning Shot's old behavior instead of its actual piercing-stun effect)
+  and now also costs Jett 2 SPD steps for its 2-turn duration, to offset
+  the buffed Warning Shot/Piercing Volley it grants.
 
 ### 2026-09-05 — Practice Mode
 
