@@ -118,6 +118,20 @@ function dmgMultOf(u) {
   const modes = u.modes || {};
   return Object.values(modes).reduce((mult, m) => (m && m.turns > 0 && m.dmgMult ? mult * m.dmgMult : mult), 1);
 }
+// Multiplicative outgoing-damage bonus from persistent named stacks (e.g.
+// Sai's Chain Dance: +15% per stack, up to 3 stacks). The mirror image of
+// the incoming-damage stack multipliers in applyDamage (VULN_STACK_PCT /
+// ARMOR_STACK_PCT), but for the attacker's own outgoing damage instead of
+// a defender's incoming damage — stacks multiplicatively with dmgMultOf.
+const STACK_DMGMULT_PCT = { chaindance: 0.15 };
+function stackDmgMultOf(u) {
+  const stacks = u.stacks || {};
+  let bonus = 0;
+  for (const [name, pct] of Object.entries(STACK_DMGMULT_PCT)) {
+    bonus += (stacks[name] || 0) * pct;
+  }
+  return 1 + bonus;
+}
 // A mode flagged `trueStrike` (e.g. Kaitsu's Steady Aim) lets its owner's
 // attacks bypass untargetable modes and invulnerability entirely.
 function hasTrueStrikeMode(u) {
@@ -581,7 +595,7 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
         const { name, min } = step.requiresTargetStack;
         stepTargets = stepTargets.filter(t => ((t.stacks && t.stacks[name]) || 0) >= (min ?? 1));
       }
-      const mult = dmgMultOf(actor);
+      const mult = dmgMultOf(actor) * stackDmgMultOf(actor);
       const trueStrike = hasTrueStrikeMode(actor);
       const foeRole = game.actor.role === "A" ? "B" : "A";
       stepTargets.forEach(t => {
