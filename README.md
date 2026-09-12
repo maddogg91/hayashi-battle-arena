@@ -115,6 +115,30 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 
 ## Changelog
 
+### 2026-09-12 — Ranks, Missions, and the first unlockable character: Yuka
+
+- **Ranks**: every account now has a rank derived from career wins —
+  Academy Prospect (default) → Student (10 wins) → Guild Leader (50) →
+  Graduate (200) → Junior Instructor (1,000) → Senior Instructor (5,000) →
+  Headmaster (10,000). Shown on your Profile page.
+- **Missions page**: a new page (linked from the lobby, registered users
+  only) tracks progress toward unlocking locked characters, with a
+  progress bar per requirement.
+- **Unlockable characters**: the roster can now include characters that
+  start locked for every account. A locked character shows as a "🔒 ???"
+  card in Character Select and can't be selected (enforced server-side
+  too) until its mission requirements are met — at which point it's
+  unlocked permanently for that account.
+- **First unlockable character: Yuka**, a reformed trap master (Mist
+  Guild, 14 SPD) with four disorientation-themed moves: **Snare Trap**
+  (damage + bind), **Smoke Screen** (AOE damage + confuse), **Concealed
+  Pitfall** (damage with a chance to stun), and **Trap Specialist's
+  Instinct** (temporary dodge chance). Unlocks by winning 5 matches with
+  Kara Higgins, winning 5 matches with Liara Mitsuke, and reaching a
+  5-match win streak (best-ever, not necessarily current).
+- Win-streak tracking (current and best-ever) was added to account stats
+  to support the streak-based mission requirement above.
+
 ### 2026-09-05 — Sai rework: Chain Dance, Opponent Drag
 
 - **Chain Dance** no longer feeds a specific move — it's now a persistent

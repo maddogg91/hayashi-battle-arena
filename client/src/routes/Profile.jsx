@@ -57,7 +57,8 @@ export default function Profile({ onBack }) {
 
         {profile && (
           <>
-            <h2 className="font-display text-2xl font-bold text-gold-300 mb-5">👤 {profile.username}</h2>
+            <h2 className="font-display text-2xl font-bold text-gold-300 mb-1">👤 {profile.username}</h2>
+            <p className="text-sm text-slate-400 mb-5">🎖️ Rank: <span className="text-slate-200 font-semibold">{profile.rank}</span></p>
 
             <div className="grid grid-cols-4 gap-3 mb-7">
               <div className="panel bg-ink-950 p-3.5 text-center">

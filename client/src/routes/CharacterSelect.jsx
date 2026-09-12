@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { socket, backendUrl } from "../api/socket";
+import { getMe } from "../api/auth";
 import CharIcon from "../components/CharIcon";
 import { playSfx } from "../utils/sfx";
 
@@ -9,13 +10,23 @@ export default function CharacterSelect({ roomId, role, onSelect, onLeave, isPra
   const [selected, setSelected] = useState([]);
   const [locked, setLocked] = useState(false);
   const [query, setQuery] = useState("");
+  const [unlockedCharacters, setUnlockedCharacters] = useState([]);
 
   useEffect(() => {
     fetch(`${backendUrl}/api/roster`)
       .then((r) => r.json())
       .then((data) => setPool(data.chars || []))
       .catch(() => setLoadError("Could not load the roster. Is the server running?"));
+    // Locked characters (e.g. Yuka) are still returned by /api/roster with
+    // locked:true — this just tells us which of them THIS account has
+    // actually earned, so guests and players who haven't finished the
+    // unlock missions see a "?" placeholder instead.
+    getMe()
+      .then((user) => setUnlockedCharacters(user?.unlockedCharacters || []))
+      .catch(() => setUnlockedCharacters([]));
   }, []);
+
+  const isCharUnlocked = (char) => !char.locked || unlockedCharacters.includes(char.name);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -28,7 +39,7 @@ export default function CharacterSelect({ roomId, role, onSelect, onLeave, isPra
   }, [query, pool]);
 
   const toggleCharacter = (char) => {
-    if (locked) return;
+    if (locked || !isCharUnlocked(char)) return;
     playSfx("click");
     const exists = selected.find((c) => c.name === char.name);
     if (exists) {
@@ -98,8 +109,9 @@ export default function CharacterSelect({ roomId, role, onSelect, onLeave, isPra
 
       <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 w-full px-1">
         {filtered.map((char) => {
-          const selectedNow = isSelected(char.name);
-          const disabled = !selectedNow && !canSelectMore;
+          const charUnlocked = isCharUnlocked(char);
+          const selectedNow = charUnlocked && isSelected(char.name);
+          const disabled = !selectedNow && (!canSelectMore || !charUnlocked);
           return (
             <button
               key={char.name}
@@ -109,16 +121,27 @@ export default function CharacterSelect({ roomId, role, onSelect, onLeave, isPra
                 ${selectedNow ? "border-gold-400! bg-gold-500/10 shadow-lg shadow-gold-500/10" : "hover:border-panel-line/60 hover:bg-panel-raised"}
                 ${disabled ? "opacity-40 cursor-not-allowed" : ""}
               `}
-              title={char.type}
+              title={charUnlocked ? char.type : "Locked — complete its unlock mission to play it"}
             >
-              <div className="text-4xl flex items-center justify-center h-11">
-                <CharIcon img={char.img} alt={char.name} sizePx={36} />
-              </div>
-              <p className="font-display font-bold mt-2 text-slate-100">{char.name}</p>
-              <p className="text-xs text-slate-400 mt-1 line-clamp-2">{char.type}</p>
-              <p className="text-xs text-slate-300 mt-2">
-                ❤️ 100 HP ⚡ {char.spd} SPD
-              </p>
+              {charUnlocked ? (
+                <>
+                  <div className="text-4xl flex items-center justify-center h-11">
+                    <CharIcon img={char.img} alt={char.name} sizePx={36} />
+                  </div>
+                  <p className="font-display font-bold mt-2 text-slate-100">{char.name}</p>
+                  <p className="text-xs text-slate-400 mt-1 line-clamp-2">{char.type}</p>
+                  <p className="text-xs text-slate-300 mt-2">
+                    ❤️ 100 HP ⚡ {char.spd} SPD
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="text-4xl flex items-center justify-center h-11 text-slate-500">🔒</div>
+                  <p className="font-display font-bold mt-2 text-slate-500">???</p>
+                  <p className="text-xs text-slate-500 mt-1">Locked</p>
+                  <p className="text-xs text-slate-500 mt-2">See Missions</p>
+                </>
+              )}
             </button>
           );
         })}

@@ -11,6 +11,7 @@ import feedbackApi from "./routes/api/feedback.js";
 import authApi from "./routes/api/auth.js";
 import profileApi from "./routes/api/profile.js";
 import leaderboardApi from "./routes/api/leaderboard.js";
+import missionsApi from "./routes/api/missions.js";
 import { getDb, mongoEnabled } from "./db/mongo.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -26,6 +27,7 @@ app.use("/api/feedback", feedbackApi);
 app.use("/api/auth", authApi);
 app.use("/api/profile", profileApi);
 app.use("/api/leaderboard", leaderboardApi);
+app.use("/api/missions", missionsApi);
 
 // SPA catch-all: any path not matched by an API route falls through to the
 // React app's client-side router.

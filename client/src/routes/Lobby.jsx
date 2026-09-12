@@ -13,7 +13,7 @@ const btnPrimary =
 const btnSecondary =
   "text-sm px-4 py-2.5 rounded-xl bg-panel-raised hover:bg-panel-line text-slate-200 font-semibold border border-panel-line transition";
 
-export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpenGuide, onOpenProfile, onOpenLeaderboard }) {
+export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpenGuide, onOpenProfile, onOpenLeaderboard, onOpenMissions }) {
   const [name, setName] = useState("");
   const [hasName, setHasName] = useState(false);
   const [loadingPublic, setLoadingPublic] = useState(false);
@@ -255,6 +255,11 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
                 👤 <span className="hidden sm:inline">My </span>Profile
               </button>
             )}
+            {authUser && onOpenMissions && (
+              <button onClick={() => { playSfx("click"); onOpenMissions(); }} className={btnSecondary}>
+                🎯 Missions
+              </button>
+            )}
             {onOpenGuide && (
               <button onClick={() => { playSfx("click"); onOpenGuide(); }} className={btnSecondary}>
                 📖 <span className="hidden sm:inline">Character </span>Guide
@@ -460,6 +465,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
           </button>
           {showWhatsNew && (
             <ul className="mt-3 text-sm text-slate-300 space-y-1.5 list-disc list-inside">
+              <li>New: Ranks (based on career wins, from Academy Prospect up to Headmaster) and a Missions page for registered users. The roster now supports locked, unlockable characters — shown as a "🔒 ???" card until earned. First up: Yuka, a reformed trap master with a disorientation-themed kit (Snare Trap, Smoke Screen, Concealed Pitfall, Trap Specialist's Instinct). Unlock her by winning 5 matches with Kara Higgins, 5 with Liara Mitsuke, and reaching a 5-match win streak.</li>
               <li>Sai rework: Chain Dance is now a passive that boosts his damage output by 15% per stack (up to 3) instead of feeding a single move. Half-moon Melee is now Opponent Drag — 40 SP (down from 65), deals 15 unguardable damage, and grants Sai invulnerability for one action if the target is bound by Binding Chain. No longer requires Chain Dance stacks to use.</li>
               <li>Balance pass: Liara's Sonic Edge costs less (50→40 SP) and hits harder (25→45 dmg). Ben's Fist of the King can no longer be recast while already active. Sai's Binding Chain now leaves him taking 25% more damage for its 2-turn duration. Kairu's Imbue with Light dodge chance reduced 50%→25%. Arthur's Direct Shot deals less (40→30, 55→45 with Lock-on). Sora's Wave Runner evasion reduced 50%→25%. Jett's Kimura Special now correctly describes its effects and costs him 2 SPD steps while active.</li>
               <li>New Practice Mode (below) — draft a team of 5 and fight 5 Training Dummies that only ever Rest, so you can freely test out combinations. No cutscene, no opponent, and nothing counts toward your record or the leaderboard. Swap in a different team or head back to the lobby with one click, any time, mid-battle included.</li>
