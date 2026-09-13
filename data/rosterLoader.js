@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { parse } from "csv-parse/sync";
+import { LOCKED_CHARACTER_NAMES } from "./unlockables.js";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 
@@ -17,6 +18,7 @@ export function loadRoster() {
     spd: Number(r.spd),
     img: r.img || "🎭",
     description: r.description || "",
+    locked: LOCKED_CHARACTER_NAMES.has(r.name),
   }));
 
   const movesRows = loadCSV("moves.csv");

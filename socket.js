@@ -10,8 +10,9 @@ import { buildBattleLogSummary } from "./battleLogSummary.js";
 import { summarizeBattleLogWithClaude } from "./aiBattleSummary.js";
 import { sessionMiddleware } from "./config/session.js";
 import { isAllowedOrigin } from "./config/corsOrigins.js";
-import { recordMatchResult } from "./db/users.js";
+import { recordMatchResult, getUserById } from "./db/users.js";
 import { mongoEnabled } from "./db/mongo.js";
+import { LOCKED_CHARACTER_NAMES } from "./data/unlockables.js";
 
 /**
  * Room shape:
@@ -109,6 +110,16 @@ function ensureRoom(roomId) {
   return rooms[roomId];
 }
 function opponentRole(role) { return role === "A" ? "B" : "A"; }
+
+// Drops any pick naming a locked character the requesting user hasn't
+// unlocked yet — a client-side guard already prevents this in normal play,
+// but selectCharacter's payload is otherwise trusted as-is, so a modified
+// client could try to draft a locked character directly.
+async function sanitizePicks(picks, userId) {
+  if (!picks.some((c) => LOCKED_CHARACTER_NAMES.has(c?.name))) return picks;
+  const unlocked = userId ? new Set((await getUserById(userId))?.unlockedCharacters || []) : new Set();
+  return picks.filter((c) => !LOCKED_CHARACTER_NAMES.has(c?.name) || unlocked.has(c.name));
+}
 
 // Credits each logged-in seat's account with a win or loss and updates
 // their per-character usage, once, when a match actually finishes (all of
@@ -599,12 +610,17 @@ export function initSocket(httpServer) {
     });
 
     /* -------- Character selection -------- */
-    socket.on("selectCharacter", ({ roomId, role, characters }) => {
+    socket.on("selectCharacter", async ({ roomId, role, characters }) => {
       const room = rooms[roomId];
       if (!room || !role || !Array.isArray(characters)) return;
 
-      // constrain to 5 picks
-      room.selections[role] = characters.slice(0, 5);
+      // constrain to 5 picks, then drop any locked character this user
+      // (identified by their own session, not anything the client sent)
+      // hasn't actually unlocked.
+      const picks = await sanitizePicks(characters.slice(0, 5), socket.data.userId);
+      // The room may have been torn down while we awaited the DB lookup.
+      if (!rooms[roomId]) return;
+      room.selections[role] = picks;
 
       // Practice rooms have no real second player — the moment the solo
       // player locks in their team, auto-fill the Training Dummy roster so

@@ -5,6 +5,7 @@ import CharacterSelect from "./CharacterSelect";
 import CharacterGuide from "./CharacterGuide";
 import Profile from "./Profile";
 import Leaderboard from "./Leaderboard";
+import Missions from "./Missions";
 import TeamGrid from "../components/TeamGrid";
 import MovesPanel from "../components/MovesPanel";
 import PreBattleCutscene from "../components/PreBattleCutscene";
@@ -74,6 +75,7 @@ export default function Game() {
   const [showGuide, setShowGuide] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showMissions, setShowMissions] = useState(false);
 
   // Net/Game
   const [roomId, setRoomId] = useState(null);
@@ -425,6 +427,10 @@ export default function Game() {
     return <Leaderboard onBack={() => setShowLeaderboard(false)} />;
   }
 
+  if (showMissions) {
+    return <Missions onBack={() => setShowMissions(false)} />;
+  }
+
   if (inLobby) {
     return (
       <div className="screen-fade grid lg:grid-cols-3 gap-5 sm:gap-6 p-4 sm:p-6">
@@ -449,6 +455,7 @@ export default function Game() {
             onOpenGuide={() => setShowGuide(true)}
             onOpenProfile={() => setShowProfile(true)}
             onOpenLeaderboard={() => setShowLeaderboard(true)}
+            onOpenMissions={() => setShowMissions(true)}
           />
         </div>
         <div className="space-y-5 sm:space-y-6">
