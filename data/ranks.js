@@ -17,3 +17,11 @@ export function getRank(wins) {
   }
   return rank;
 }
+
+// True once `wins` is enough to have reached (or passed) the named rank —
+// used by unlock requirements like "Become Junior Instructor rank".
+export function meetsRank(wins, rankName) {
+  const target = RANKS.find((r) => r.name === rankName);
+  if (!target) return false;
+  return wins >= target.wins;
+}

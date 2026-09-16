@@ -26,7 +26,7 @@ let cache = loadRoster();    // { chars, movesByChar, dialogueRows }
 // --- utilities ---
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 
-function newEffects() { return { stun:0, bind:0, burn:0, shield:0, reflect:0, invuln:0, charm:0, immune:0, confuse:0, expose:0, barrier:0, mirror:0 }; }
+function newEffects() { return { stun:0, bind:0, burn:0, shield:0, reflect:0, invuln:0, charm:0, immune:0, confuse:0, expose:0, barrier:0, mirror:0, substitute:0 }; }
 // Per-match running totals shown on the post-battle summary screen.
 // damageDealt/damageTaken/healingDone/healingReceived are all *actual*
 // HP-changed amounts (clamped to what really moved, e.g. an overkill hit
@@ -123,7 +123,7 @@ function dmgMultOf(u) {
 // the incoming-damage stack multipliers in applyDamage (VULN_STACK_PCT /
 // ARMOR_STACK_PCT), but for the attacker's own outgoing damage instead of
 // a defender's incoming damage — stacks multiplicatively with dmgMultOf.
-const STACK_DMGMULT_PCT = { chaindance: 0.15 };
+const STACK_DMGMULT_PCT = { chaindance: 0.15, clone: 0.25 };
 function stackDmgMultOf(u) {
   const stacks = u.stacks || {};
   let bonus = 0;
@@ -131,6 +131,19 @@ function stackDmgMultOf(u) {
     bonus += (stacks[name] || 0) * pct;
   }
   return 1 + bonus;
+}
+// Additive incoming-dodge-chance bonus from persistent named stacks (e.g.
+// Rock's Clone Technique: +25% evasion per clone token). The defensive
+// counterpart to STACK_DMGMULT_PCT above — stacks additively with
+// dodgeChanceOf (mode-based dodge) rather than multiplicatively.
+const STACK_DODGECHANCE_PCT = { clone: 0.25 };
+function stackDodgeChanceOf(u) {
+  const stacks = u.stacks || {};
+  let bonus = 0;
+  for (const [name, pct] of Object.entries(STACK_DODGECHANCE_PCT)) {
+    bonus += (stacks[name] || 0) * pct;
+  }
+  return bonus;
 }
 // A mode flagged `trueStrike` (e.g. Kaitsu's Steady Aim) lets its owner's
 // attacks bypass untargetable modes and invulnerability entirely.
@@ -191,7 +204,11 @@ function hitWithIgnore(attacker, defender, addBase, ignoreFrac=0) {
 function applyDamage(attacker, defender, raw, opts = {}) {
   let dmg = raw;
   const notes = [];
-  const dodge = dodgeChanceOf(defender);
+  // Rock's Clone Technique (stack-based) and Teru's Scout Target (a
+  // per-attacker bonus threaded in via opts.extraDodge) both add onto the
+  // normal mode-based dodge chance additively, capped well short of 100% so
+  // no combination of sources produces a guaranteed dodge.
+  const dodge = Math.min(0.95, dodgeChanceOf(defender) + stackDodgeChanceOf(defender) + (opts.extraDodge || 0));
   if (dodge > 0 && !opts.trueStrike && !opts.lockedOn && Math.random() < dodge) {
     notes.push(`${defender.name} dodges the attack!`);
     defender.stats.damageGuarded += raw;
@@ -199,6 +216,16 @@ function applyDamage(attacker, defender, raw, opts = {}) {
   }
   if (defender.effects.invuln > 0 && !opts.trueStrike) {
     notes.push(`${defender.name} is invulnerable and takes no damage.`);
+    defender.stats.damageGuarded += raw;
+    return { dmg: 0, notes };
+  }
+  // Rock's Substitution: a single-use dodge that isn't turn-limited like
+  // invuln — it stays armed (backed by a generous turns window, same
+  // pattern as Soren's barrier/mirror below) until the next attack against
+  // him, which it fully negates with no side effect, then consumes itself.
+  if (defender.effects.substitute > 0 && !opts.trueStrike) {
+    defender.effects.substitute = 0;
+    notes.push(`${defender.name} substitutes away from the attack, avoiding all damage!`);
     defender.stats.damageGuarded += raw;
     return { dmg: 0, notes };
   }
@@ -292,7 +319,7 @@ function applyDamage(attacker, defender, raw, opts = {}) {
   return { dmg, notes };
 }
 
-const EFFECT_LABEL = { stun: "Stun", bind: "Bind", burn: "Burn", shield: "a Shield", reflect: "Reflect", invuln: "Invulnerability", charm: "Charm", confuse: "Confuse", expose: "Expose", barrier: "a Barrier", mirror: "a Mirror" };
+const EFFECT_LABEL = { stun: "Stun", bind: "Bind", burn: "Burn", shield: "a Shield", reflect: "Reflect", invuln: "Invulnerability", charm: "Charm", confuse: "Confuse", expose: "Expose", barrier: "a Barrier", mirror: "a Mirror", substitute: "a Substitution" };
 const STAT_LABEL = { atk: "ATK", def: "DEF", spd: "SPD", spregen: "SP Regen" };
 
 // --- turn order ---
@@ -368,14 +395,21 @@ function startTurnUpkeep(u, game) {
         const label = name.charAt(0).toUpperCase() + name.slice(1);
         game.log.push(`${u.name} takes ${m.selfDamage} damage from ${label}.`);
       }
-      if (m.hotHeal > 0 || m.hotSp > 0) {
+      if (m.hotHeal > 0 || m.hotSp) {
         // healingReceived only — this is a passive upkeep tick with no
         // clear "healer" unit to credit healingDone to, same scope
         // limitation as burn/selfDamage having no attacker for damageDealt.
+        // hotSp can also go negative (e.g. Yuka's Age Hex draining stamina),
+        // unlike hotHeal which is only ever used as regen.
         if (m.hotHeal > 0) healUnit(u, m.hotHeal);
-        if (m.hotSp > 0) u.sp = clamp(u.sp + m.hotSp, 0, MAX_SP);
+        if (m.hotSp) u.sp = clamp(u.sp + m.hotSp, 0, MAX_SP);
         const label = name.charAt(0).toUpperCase() + name.slice(1);
-        game.log.push(`${u.name} gains ${m.hotHeal || 0} HP and ${m.hotSp || 0} SP from ${label}.`);
+        if (m.hotSp < 0) {
+          const gainPart = m.hotHeal > 0 ? ` and gains ${m.hotHeal} HP` : "";
+          game.log.push(`${u.name} loses ${Math.abs(m.hotSp)} SP${gainPart} from ${label}.`);
+        } else {
+          game.log.push(`${u.name} gains ${m.hotHeal || 0} HP and ${m.hotSp || 0} SP from ${label}.`);
+        }
       }
     }
   }
@@ -535,6 +569,17 @@ function pickTargets(game, actorRole, spec, target) {
     }
     case "aoe_enemy": return legalFoe;
     case "aoe_charmed_enemy": return legalFoe.filter(x => x.effects.charm > 0);
+    // Teru's Gunplay Carnival/Final Act: forces the alt hit onto whichever
+    // opponent Teru most recently scouted, ignoring whatever the client
+    // sent as `target` — the bonus is specifically "the scouted target",
+    // not "any target of your choice".
+    case "scouted_enemy": {
+      const st = my[game.actor.i].scoutTarget;
+      if (!st) return [];
+      const t = game.teams[st.role]?.[st.index];
+      if (!t || t.hp <= 0) return [];
+      return [t];
+    }
     case "aoe_team":  return my.filter(x=>x.hp>0);
     case "aoe_all":   return [...my.filter(x=>x.hp>0), ...legalFoe];
     default:          return [];
@@ -598,7 +643,22 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
       const mult = dmgMultOf(actor) * stackDmgMultOf(actor);
       const trueStrike = hasTrueStrikeMode(actor);
       const foeRole = game.actor.role === "A" ? "B" : "A";
+      // Optional "landing" chance for the whole hit (e.g. Leia's Almighty
+      // Charge: a coin-flip one-hit-KO attempt) — distinct from the
+      // per-status `chance` field on "effect" steps. Defaults to 1 (always
+      // lands), matching every damage step that predates this field.
+      const landChance = step.chance != null ? Number(step.chance) : 1;
       stepTargets.forEach(t => {
+        if (landChance < 1 && Math.random() >= landChance) {
+          log.push(`${actor.name}'s ${skillLabel} misses ${t.name}!`);
+          return;
+        }
+        // Teru's Scout Target: a persistent (non-turn-limited) bonus dodge
+        // chance against one specific scouted attacker, tracked as a plain
+        // {role,index} ref on the defender rather than through the normal
+        // turns-based modes system.
+        const st = t.scoutTarget;
+        const extraDodge = (st && st.role === game.actor.role && st.index === actor.index) ? 0.25 : 0;
         // Per-target conditional bonus (e.g. Tana's Heatseeker/Infernal
         // Outburst hitting harder against already-burned targets).
         let b = base;
@@ -615,7 +675,7 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
         }
         b = Math.floor(b * mult);
         const lockedOn = isLockedOnTarget(actor, foeRole, t);
-        const { dmg, notes } = applyDamage(actor, t, hitWithIgnore(actor, t, b, ignore), { unguardable: !!step.unguardable, trueStrike, lockedOn });
+        const { dmg, notes } = applyDamage(actor, t, hitWithIgnore(actor, t, b, ignore), { unguardable: !!step.unguardable, trueStrike, lockedOn, extraDodge });
         log.push(`${actor.name} attacks ${t.name} with ${skillLabel}, dealing ${dmg} damage.`, ...notes);
         if (step.clearEffect) t.effects[step.clearEffect] = 0;
         if (step.consumeTargetStack) {
@@ -841,6 +901,14 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
       const chip = { stat, amount: amt, turns: trn };
       const label = STAT_LABEL[stat] || stat;
       each(t => {
+        // A negative mod is a debuff — Leia's Absolute Refusal (Immunity)
+        // blocks these the same way it already blocks the "effect" kind's
+        // negative statuses, so "immunity to debuffs" covers stat curses
+        // (-SPD/-ATK/-DEF) too, not just stun/bind/burn/etc.
+        if (amt < 0 && t.effects.immune > 0) {
+          log.push(`${t.name} is immune to status effects and resists the ${label} drop.`);
+          return;
+        }
         if (Math.random() >= chance) return;
         t.mods.push({ ...chip });
         log.push(`${t.name}'s ${label} ${amt >= 0 ? "rises" : "falls"} by ${Math.abs(amt)} (${trn}) from ${skillLabel}.`);
@@ -860,10 +928,44 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
         actor.modes.lockon = { turns, targetRef: { role: foeRole, index: targetUnit.index } };
         log.push(`${actor.name} locks on to ${targetUnit.name}.`);
       }
+    } else if (kind === "scouttarget") {
+      // Teru's Scout Target: captures a reference to the chosen enemy on
+      // the ACTOR (so pickTargets' "scouted_enemy" spec and the "damage"
+      // step's extraDodge check can both read it back). Unlike lockon this
+      // isn't turns-limited — it lives until Teru scouts someone else.
+      const targetUnit = arr[0];
+      if (targetUnit) {
+        const foeRole = game.actor.role === "A" ? "B" : "A";
+        actor.scoutTarget = { role: foeRole, index: targetUnit.index };
+        log.push(`${actor.name} scouts ${targetUnit.name}.`);
+      }
     } else if (kind === "recoil") {
-      const amt = Number(step.amount || 0);
+      let amt = Number(step.amount || 0);
+      // Rock's Gale of Devastation: each Clone token softens its own
+      // recoil, then the tokens are spent regardless of how much they
+      // reduced (consumed at most once per use, after the reduction is
+      // calculated).
+      if (step.reduceByStack) {
+        const { name, per } = step.reduceByStack;
+        const count = (actor.stacks && actor.stacks[name]) || 0;
+        amt = Math.max(0, amt - Number(per || 0) * count);
+      }
       damageUnit(actor, amt);
       log.push(`${actor.name} takes ${amt} recoil damage from ${skillLabel}.`);
+      if (step.consumeStack) {
+        actor.stacks = actor.stacks || {};
+        actor.stacks[step.consumeStack] = 0;
+      }
+    } else if (kind === "swap") {
+      // Yuka's Body Swap: trades current HP with the target outright — no
+      // heal/damage stat attribution either way, since it's a bidirectional
+      // exchange rather than a clean gain or loss for either side.
+      arr.forEach(t => {
+        const tmp = actor.hp;
+        actor.hp = t.hp;
+        t.hp = tmp;
+        log.push(`${actor.name} swaps HP with ${t.name} (now ${actor.hp} vs ${t.hp}).`);
+      });
     } else if (kind === "guard") {
       // Vows to avenge a target (Liara's Ronin's Revenge protecting an
       // ally, Ben's Warrior Instinct protecting himself): the next enemy
@@ -955,6 +1057,7 @@ export function initGame(selections, roomId, names = {}) {
       comboTargetKey: null,
       disabledSkill: null,
       taunt: null,
+      scoutTarget: null,
       skills: [...moves, REST],
     };
   });

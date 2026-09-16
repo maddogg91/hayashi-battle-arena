@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { getDb } from "./mongo.js";
-import { getRank } from "../data/ranks.js";
+import { getRank, meetsRank, RANKS } from "../data/ranks.js";
 import { UNLOCKABLES, requirementLabel } from "../data/unlockables.js";
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
@@ -163,10 +163,11 @@ export async function recordMatchResult(userId, { won, characters }) {
     );
   }
 
-  await maybeUnlockCharacters(db, _id, bestStreak);
+  const totalWins = (before?.stats?.wins || 0) + (won ? 1 : 0);
+  await maybeUnlockCharacters(db, _id, bestStreak, totalWins);
 }
 
-function evalRequirement(req, { bestStreak, usageByChar }) {
+function evalRequirement(req, { bestStreak, usageByChar, wins }) {
   if (req.type === "characterWins") {
     const have = usageByChar[req.character]?.wins || 0;
     return { met: have >= req.count, have, need: req.count };
@@ -174,13 +175,17 @@ function evalRequirement(req, { bestStreak, usageByChar }) {
   if (req.type === "winStreak") {
     return { met: bestStreak >= req.count, have: bestStreak, need: req.count };
   }
+  if (req.type === "rank") {
+    const threshold = RANKS.find((r) => r.name === req.rank)?.wins ?? 0;
+    return { met: meetsRank(wins, req.rank), have: wins, need: threshold };
+  }
   return { met: false, have: 0, need: req.count };
 }
 
 // Checks every locked character this user hasn't already unlocked against
 // their current characterUsage/bestStreak, and permanently records any that
 // now qualify. Called after every recorded match result.
-async function maybeUnlockCharacters(db, _id, bestStreak) {
+async function maybeUnlockCharacters(db, _id, bestStreak, wins) {
   const locked = UNLOCKABLES.map((u) => u.character);
   if (!locked.length) return;
   const userDoc = await db.collection("users").findOne({ _id }, { projection: { unlockedCharacters: 1 } });
@@ -192,7 +197,7 @@ async function maybeUnlockCharacters(db, _id, bestStreak) {
   const usageByChar = Object.fromEntries(usage.map((u) => [u.character, u]));
 
   const newlyUnlocked = candidates
-    .filter(({ requirements }) => requirements.every((req) => evalRequirement(req, { bestStreak, usageByChar }).met))
+    .filter(({ requirements }) => requirements.every((req) => evalRequirement(req, { bestStreak, usageByChar, wins }).met))
     .map((u) => u.character);
 
   if (newlyUnlocked.length) {
@@ -213,6 +218,7 @@ export async function getMissionProgress(userId) {
   const userDoc = await db.collection("users").findOne({ _id });
   if (!userDoc) return [];
   const bestStreak = userDoc.stats?.bestStreak || 0;
+  const wins = userDoc.stats?.wins || 0;
   const unlocked = new Set(userDoc.unlockedCharacters || []);
   const usage = await db.collection("characterUsage").find({ userId: _id }).toArray();
   const usageByChar = Object.fromEntries(usage.map((u) => [u.character, u]));
@@ -222,7 +228,7 @@ export async function getMissionProgress(userId) {
     unlocked: unlocked.has(character),
     requirements: requirements.map((req) => ({
       label: requirementLabel(req),
-      ...evalRequirement(req, { bestStreak, usageByChar }),
+      ...evalRequirement(req, { bestStreak, usageByChar, wins }),
     })),
   }));
 }
