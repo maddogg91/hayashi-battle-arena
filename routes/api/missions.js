@@ -1,5 +1,5 @@
 import express from "express";
-import { getMissionProgress } from "../../db/users.js";
+import { getMissionProgress, getRankProgress } from "../../db/users.js";
 import { mongoEnabled } from "../../db/mongo.js";
 
 const router = express.Router();
@@ -11,8 +11,11 @@ router.get("/", async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ error: "Log in to view mission progress." });
   }
-  const missions = await getMissionProgress(req.session.userId);
-  res.json({ missions });
+  const [missions, rank] = await Promise.all([
+    getMissionProgress(req.session.userId),
+    getRankProgress(req.session.userId),
+  ]);
+  res.json({ missions, rank });
 });
 
 export default router;

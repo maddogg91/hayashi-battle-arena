@@ -465,6 +465,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
           </button>
           {showWhatsNew && (
             <ul className="mt-3 text-sm text-slate-300 space-y-1.5 list-disc list-inside">
+              <li>The Leaderboard now shows each player's rank and current win-or-loss streak, plus a "How to Reach Each Rank" reference section. The Missions page now tracks rank progression too, alongside character unlocks.</li>
               <li>Rock West, Teru Fukuzawa, and Leia Claasen are now grouped under "Staff" instead of a guild; Raven, Caine, Ivy Al Vere, and Lance are now grouped under "Villains".</li>
               <li>Balance: Sendara's Unyielding Barrage now deals 55 piercing damage and only self-stuns for 1 turn (was 50 non-piercing, 2-turn self-stun). Kairu's Flash Kick nerfed to 40 damage / 50 SP (was 50 / 60).</li>
               <li>Four more unlockable characters, all Villains: Raven — Shadow Crawl, Swift Strikes, Quick Retreat, Desperate Lunge, unlocked via 20 wins with Liara Mitsuke; Caine — a strict Un!/Deux!/Trois!/Crimson Finale! combo chain, unlocked via a 5-win streak specifically while playing Teru Fukuzawa; Ivy Al Vere — Sendara's long-missing sister, Lightning Spear, Oppressive Spirit, Concentrated Barrage, Abandon Principles, unlocked via 20 wins with Sendara Al Vere; Lance — Lyra's long-lost older brother, Darkness Flames, Doppelganger, Refresh, Gugnir, unlocked via 10 wins with Lyra plus 5 wins each with Kairu, Soren, and Arthur.</li>

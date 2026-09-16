@@ -3,13 +3,23 @@ import { getLeaderboard } from "../api/auth";
 
 const MEDAL = ["🥇", "🥈", "🥉"];
 
+function streakLabel(e) {
+  if (e.currentWinStreak > 0) return { text: `W${e.currentWinStreak}`, className: "text-teamA-400" };
+  if (e.currentLossStreak > 0) return { text: `L${e.currentLossStreak}`, className: "text-hp-400" };
+  return { text: "—", className: "text-slate-500" };
+}
+
 export default function Leaderboard({ onBack }) {
   const [entries, setEntries] = useState(null);
+  const [ranks, setRanks] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     getLeaderboard(50)
-      .then(setEntries)
+      .then((data) => {
+        setEntries(data.entries || []);
+        setRanks(data.ranks || []);
+      })
       .catch((err) => setError(err.message || "Could not load the leaderboard."));
   }, []);
 
@@ -45,25 +55,48 @@ export default function Leaderboard({ onBack }) {
                 <tr className="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-panel-line">
                   <th className="py-2 pr-3 font-semibold">#</th>
                   <th className="py-2 pr-3 font-semibold">Player</th>
+                  <th className="py-2 pr-3 font-semibold">Rank</th>
                   <th className="py-2 pr-3 font-semibold text-right">Wins</th>
                   <th className="py-2 pr-3 font-semibold text-right">Losses</th>
+                  <th className="py-2 pr-3 font-semibold text-right">Streak</th>
                   <th className="py-2 font-semibold text-right">Win Rate</th>
                 </tr>
               </thead>
               <tbody>
-                {entries.map((e, i) => (
-                  <tr key={e.username} className="border-b border-panel-line/60 last:border-0">
-                    <td className="py-2.5 pr-3 text-slate-400">{MEDAL[i] || i + 1}</td>
-                    <td className="py-2.5 pr-3 font-semibold text-slate-100">{e.username}</td>
-                    <td className="py-2.5 pr-3 text-right text-teamA-400 font-semibold">{e.wins}</td>
-                    <td className="py-2.5 pr-3 text-right text-hp-400 font-semibold">{e.losses}</td>
-                    <td className="py-2.5 text-right text-slate-300">
-                      {e.gamesPlayed ? Math.round((e.wins / e.gamesPlayed) * 100) : 0}%
-                    </td>
-                  </tr>
-                ))}
+                {entries.map((e, i) => {
+                  const streak = streakLabel(e);
+                  return (
+                    <tr key={e.username} className="border-b border-panel-line/60 last:border-0">
+                      <td className="py-2.5 pr-3 text-slate-400">{MEDAL[i] || i + 1}</td>
+                      <td className="py-2.5 pr-3 font-semibold text-slate-100">{e.username}</td>
+                      <td className="py-2.5 pr-3 text-slate-300 whitespace-nowrap">🎖️ {e.rank}</td>
+                      <td className="py-2.5 pr-3 text-right text-teamA-400 font-semibold">{e.wins}</td>
+                      <td className="py-2.5 pr-3 text-right text-hp-400 font-semibold">{e.losses}</td>
+                      <td className={`py-2.5 pr-3 text-right font-semibold ${streak.className}`}>{streak.text}</td>
+                      <td className="py-2.5 text-right text-slate-300">
+                        {e.gamesPlayed ? Math.round((e.wins / e.gamesPlayed) * 100) : 0}%
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {ranks && ranks.length > 0 && (
+          <div className="mt-7 pt-5 border-t border-panel-line">
+            <h3 className="font-display text-lg font-bold text-slate-100 mb-3">🎖️ How to Reach Each Rank</h3>
+            <div className="space-y-1.5">
+              {ranks.map((r) => (
+                <div key={r.name} className="flex items-center justify-between text-sm px-3 py-2 rounded-lg bg-ink-950">
+                  <span className="font-semibold text-slate-200">{r.name}</span>
+                  <span className="text-slate-400">
+                    {r.wins === 0 ? "Default rank" : `Win ${r.wins.toLocaleString()} matches`}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

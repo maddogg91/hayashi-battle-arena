@@ -111,6 +111,11 @@ export async function getLeaderboard(limit = 20) {
     wins: d.stats?.wins || 0,
     losses: d.stats?.losses || 0,
     gamesPlayed: d.stats?.gamesPlayed || 0,
+    rank: getRank(d.stats?.wins || 0),
+    // Exactly one of these is ever non-zero (a win resets the loss streak
+    // and vice versa) — the client picks whichever side is live.
+    currentWinStreak: d.stats?.currentStreak || 0,
+    currentLossStreak: d.stats?.currentLossStreak || 0,
   }));
 }
 
@@ -135,6 +140,10 @@ export async function recordMatchResult(userId, { won, characters }) {
   const prevBest = before?.stats?.bestStreak || 0;
   const currentStreak = won ? prevStreak + 1 : 0;
   const bestStreak = Math.max(prevBest, currentStreak);
+  // The loss-streak mirror of currentStreak, for the leaderboard's "current
+  // win or loss streak" display — a win resets it, a loss builds it.
+  const prevLossStreak = before?.stats?.currentLossStreak || 0;
+  const currentLossStreak = won ? 0 : prevLossStreak + 1;
 
   await db.collection("users").updateOne(
     { _id },
@@ -147,6 +156,7 @@ export async function recordMatchResult(userId, { won, characters }) {
       $set: {
         "stats.currentStreak": currentStreak,
         "stats.bestStreak": bestStreak,
+        "stats.currentLossStreak": currentLossStreak,
       },
     }
   );
@@ -245,4 +255,21 @@ export async function getMissionProgress(userId) {
       ...evalRequirement(req, { bestStreak, usageByChar, wins }),
     })),
   }));
+}
+
+// Progress toward every rank tier, for the Missions page's rank-tracking
+// section and the leaderboard's "how to achieve each rank" reference.
+export async function getRankProgress(userId) {
+  const db = await getDb();
+  const { ObjectId } = await import("mongodb");
+  let _id;
+  try { _id = new ObjectId(userId); } catch { return null; }
+  const userDoc = await db.collection("users").findOne({ _id }, { projection: { stats: 1 } });
+  if (!userDoc) return null;
+  const wins = userDoc.stats?.wins || 0;
+  return {
+    currentRank: getRank(wins),
+    wins,
+    tiers: RANKS.map((r) => ({ name: r.name, wins: r.wins, met: wins >= r.wins })),
+  };
 }
