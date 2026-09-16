@@ -136,8 +136,15 @@ async function sanitizePicks(picks, userId, playtestUnlock) {
 // other, logged-in side's result from being recorded. Deliberately scoped
 // to natural match completions only: a player leaving or disconnecting
 // mid-match does not currently record a loss for them.
+//
+// Private matches (room.isPrivate) are excluded entirely — they're for
+// playing with a specific person by arrangement (or, via the "LOKI"
+// passcode, playtesting locked characters), not for the public
+// record/leaderboard/missions, so nothing about them is ever persisted to
+// an account: no win/loss, no character usage, no streak, no rank
+// progress, no mission/unlock progress.
 export async function recordMatchOutcome(room, state) {
-  if (!mongoEnabled()) return;
+  if (!mongoEnabled() || room.isPrivate) return;
   const aAlive = state.teams.A.some((u) => u.hp > 0);
   const winnerRole = aAlive ? "A" : "B";
   for (const role of ["A", "B"]) {
@@ -693,6 +700,8 @@ export function initSocket(httpServer) {
         room.status = "over";
         // Practice matches are for trying out team comps — they're never
         // recorded as a win/loss or counted toward character usage.
+        // (Private matches are excluded too, inside recordMatchOutcome
+        // itself — see its comment.)
         if (!room.practice) {
           recordMatchOutcome(room, state).catch((err) => {
             console.error("Failed to record match outcome:", err.message);

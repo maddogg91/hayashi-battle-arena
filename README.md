@@ -115,6 +115,15 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 
 ## Changelog
 
+### 2026-09-16 — Private matches no longer count toward records
+
+- Private matches (any match started via a Private Match passcode,
+  including "LOKI" playtest rooms) are now fully excluded from account
+  progression: no win/loss, no character-usage stats, no win/loss streak,
+  no rank progress, no unlock-mission progress. Only public matchmaking
+  (Find Match) results are ever recorded. This was already true for
+  Practice Mode; it now applies uniformly to private matches too.
+
 ### 2026-09-16 — Playtest passcode for private matches
 
 - Starting a **Private Match** with the passcode **"LOKI"** (case-insensitive)
