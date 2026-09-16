@@ -117,31 +117,35 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 
 ### 2026-09-16 — Four more unlockable characters; balance pass
 
+- **Regrouped the Junior Instructors and the four new characters below**:
+  Rock West, Teru Fukuzawa, and Leia Claasen no longer belong to a guild —
+  they're now grouped as **Staff**. Raven, Caine, Ivy Al Vere, and Lance
+  are grouped as **Villains**.
 - **Balance**: Sendara's Unyielding Barrage now deals 55 piercing damage
   (was 50, non-piercing) and only stuns her for 1 turn afterward (was a
   2-turn self-stun). Kairu's Flash Kick nerfed to 40 damage / 50 SP (was
   50 damage / 60 SP).
 - **Four new unlockable characters**:
-  - **Raven** (AERO, 18 SPD) — a speed-focused huntress. Shadow Crawl
+  - **Raven** (Villains, 18 SPD) — a speed-focused huntress. Shadow Crawl
     (50% evasion + 1 SPD step for 3 turns, at a 25% damage-output cost),
     Swift Strikes (10 damage, +10 per consecutive hit on the same target,
     capped at 50), Quick Retreat (dodges the next hit and cleanses
     negative status), Desperate Lunge (40 damage, self-exposed for 1
     turn). Unlocks with 20 wins as Liara Mitsuke.
-  - **Caine** (Flame, 12 SPD) — a strict 4-move combo chain: Un! → Deux! →
+  - **Caine** (Villains, 12 SPD) — a strict 4-move combo chain: Un! → Deux! →
     Trois! → Crimson Finale!, each only usable the action immediately
     after the previous one (15/15 AOE/30 unguardable AOE/50 unguardable
     AOE). Unlocks with a 5-win streak *specifically while playing Teru
     Fukuzawa* — a new per-character win-streak requirement, distinct from
     the account-wide one.
-  - **Ivy Al Vere** (Celestial, 14 SPD) — Sendara's long-missing sister,
+  - **Ivy Al Vere** (Villains, 14 SPD) — Sendara's long-missing sister,
     an efficient spear-wielder. Lightning Spear (20 damage + 25% stun,
     +10 per consecutive use), Oppressive Spirit (+10 SP/turn for 3 turns,
     -25% damage output — the SP gain stacks if recast before it expires),
     Concentrated Barrage (35 piercing + guaranteed 1-turn stun), Abandon
     Principles (+25% damage output, +25% damage taken, for 2 turns).
     Unlocks with 20 wins as Sendara Al Vere.
-  - **Lance** (Mist, 16 SPD) — Lyra's long-lost older brother, a
+  - **Lance** (Villains, 16 SPD) — Lyra's long-lost older brother, a
     tactician. Darkness Flames (5 AOE, +5 per consecutive use, 50% burn
     chance), Doppelganger (50% evasion for 2 turns), Refresh (heals 30 HP
     + cleanses), Gugnir (50 damage, 65 if Lance is at full HP). Unlocks
@@ -168,21 +172,21 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 - **Three new unlockable characters**, each requiring Junior Instructor
   rank (1,000 career wins), 10 wins with a specific character, and a
   10-match win streak:
-  - **Rock West** (Celestial, 18 SPD) — a ninjutsu brawler. **Substitution**
+  - **Rock West** (Staff, 18 SPD) — a ninjutsu brawler. **Substitution**
     arms a one-time full dodge that stays ready until he's actually hit.
     **Clone Technique** stacks up to 3 tokens, each worth +25% damage and
     +25% evasion. **Shuriken Barrage** is a piercing AOE poke. **Gale of
     Devastation** hits hard but recoils Rock for 30 (reduced 5 per Clone
     token, which are then all consumed). Unlocks with 10 wins as Star
     Trethowan.
-  - **Teru Fukuzawa** (AERO, 16 SPD) — a gunslinger. **Scout Target** marks
+  - **Teru Fukuzawa** (Staff, 16 SPD) — a gunslinger. **Scout Target** marks
     an opponent, granting Teru a standing 25% dodge chance against that
     specific attacker until he re-scouts, and primes his very next move for
     a bonus. **Quick Shot**, **Gunplay Carnival**, and **Final Act** all hit
     harder (and Gunplay Carnival/Final Act home in on the scouted target
     specifically) when used immediately after Scout Target. Unlocks with
     10 wins as Jett Kimura.
-  - **Leia Claasen** (Flame, 12 SPD) — an axe-wielding powerhouse.
+  - **Leia Claasen** (Staff, 12 SPD) — an axe-wielding powerhouse.
     **Almighty Charge** is a 25%-chance one-hit KO. **Bullish Cutter** deals
     30 damage and stuns. **Absolute Refusal** grants two turns of immunity
     to opponent debuffs (status effects and stat curses alike). **Intimidation**
