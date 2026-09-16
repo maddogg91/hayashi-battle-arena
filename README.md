@@ -115,6 +115,16 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 
 ## Changelog
 
+### 2026-09-16 — Playtest passcode for private matches
+
+- Starting a **Private Match** with the passcode **"LOKI"** (case-insensitive)
+  now temporarily unlocks every character — including locked/unreleased
+  ones — for both players in that room only, so new kits can be playtested
+  without actually grinding out their real unlock missions. It never
+  touches either account's real unlock progress, and a badge on Character
+  Select ("🔓 Playtest Unlock") makes it obvious the room is in this mode.
+  Any other passcode behaves exactly as before.
+
 ### 2026-09-16 — Rank on the leaderboard, streaks, and rank missions
 
 - **Leaderboard**: now shows each player's current rank and their live

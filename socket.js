@@ -27,6 +27,10 @@ import { LOCKED_CHARACTER_NAMES } from "./data/unlockables.js";
  *   practice: boolean — solo practice room (see startPractice()): seat B
  *     is never a real socket, just a sentinel ("__DUMMY__") holding 5
  *     Training Dummy units that only ever Rest.
+ *   playtestUnlock: boolean — private match created with the "LOKI"
+ *     passcode: every locked character is temporarily selectable by both
+ *     seats in this room only (never touches either account's real
+ *     unlockedCharacters), for playtesting new/locked kits.
  * }
  */
 
@@ -106,6 +110,7 @@ function ensureRoom(roomId) {
     // RECONNECT_GRACE_MS) — cleared the moment that role rejoins.
     disconnectTimers: { A: null, B: null },
     practice: false,
+    playtestUnlock: false,
   };
   return rooms[roomId];
 }
@@ -114,8 +119,11 @@ function opponentRole(role) { return role === "A" ? "B" : "A"; }
 // Drops any pick naming a locked character the requesting user hasn't
 // unlocked yet — a client-side guard already prevents this in normal play,
 // but selectCharacter's payload is otherwise trusted as-is, so a modified
-// client could try to draft a locked character directly.
-async function sanitizePicks(picks, userId) {
+// client could try to draft a locked character directly. `playtestUnlock`
+// (a private room started with the "LOKI" passcode) bypasses this entirely
+// for both seats, without touching anyone's real unlockedCharacters.
+async function sanitizePicks(picks, userId, playtestUnlock) {
+  if (playtestUnlock) return picks;
   if (!picks.some((c) => LOCKED_CHARACTER_NAMES.has(c?.name))) return picks;
   const unlocked = userId ? new Set((await getUserById(userId))?.unlockedCharacters || []) : new Set();
   return picks.filter((c) => !LOCKED_CHARACTER_NAMES.has(c?.name) || unlocked.has(c.name));
@@ -205,7 +213,7 @@ function maybeCleanupRoom(roomId) {
 /* -------------------- Pairing helpers -------------------- */
 function emitMatched(io, s, roomId, role) {
   const room = rooms[roomId];
-  const payload = { roomId, role, names: room.names };
+  const payload = { roomId, role, names: room.names, playtestUnlock: !!room.playtestUnlock };
   s.emit("matched", payload);
 }
 
@@ -416,6 +424,11 @@ function privateMatch(io, socket, passcode, name) {
   const room = ensureRoom(roomId);
   room.isPrivate = true;
   room.passcode = code;
+  // A secret playtest passcode: temporarily unlocks every character for
+  // both seats in this room only, so new/locked kits can be tried out
+  // without actually completing their real unlock missions. Never touches
+  // either account's stored unlockedCharacters.
+  room.playtestUnlock = code === "LOKI";
   passcodeRooms[code] = roomId;
 
   room.players.A = socket.id;
@@ -616,8 +629,9 @@ export function initSocket(httpServer) {
 
       // constrain to 5 picks, then drop any locked character this user
       // (identified by their own session, not anything the client sent)
-      // hasn't actually unlocked.
-      const picks = await sanitizePicks(characters.slice(0, 5), socket.data.userId);
+      // hasn't actually unlocked — unless this room is a "LOKI" playtest
+      // room, which unlocks everything for both seats.
+      const picks = await sanitizePicks(characters.slice(0, 5), socket.data.userId, room.playtestUnlock);
       // The room may have been torn down while we awaited the DB lookup.
       if (!rooms[roomId]) return;
       room.selections[role] = picks;
