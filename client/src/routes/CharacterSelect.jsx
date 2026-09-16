@@ -4,7 +4,7 @@ import { getMe } from "../api/auth";
 import CharIcon from "../components/CharIcon";
 import { playSfx } from "../utils/sfx";
 
-export default function CharacterSelect({ roomId, role, onSelect, onLeave, isPractice = false }) {
+export default function CharacterSelect({ roomId, role, onSelect, onLeave, isPractice = false, playtestUnlock = false }) {
   const [pool, setPool] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [selected, setSelected] = useState([]);
@@ -26,7 +26,7 @@ export default function CharacterSelect({ roomId, role, onSelect, onLeave, isPra
       .catch(() => setUnlockedCharacters([]));
   }, []);
 
-  const isCharUnlocked = (char) => !char.locked || unlockedCharacters.includes(char.name);
+  const isCharUnlocked = (char) => playtestUnlock || !char.locked || unlockedCharacters.includes(char.name);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -79,6 +79,11 @@ export default function CharacterSelect({ roomId, role, onSelect, onLeave, isPra
       {isPractice && (
         <span className="mb-1 text-xs px-2.5 py-1 rounded-full bg-gold-500/15 text-gold-300 font-semibold">
           🏋️ Practice Mode — vs. Training Dummies
+        </span>
+      )}
+      {playtestUnlock && (
+        <span className="mb-1 text-xs px-2.5 py-1 rounded-full bg-hp-500/15 text-hp-400 font-semibold">
+          🔓 Playtest Unlock — every character is temporarily available
         </span>
       )}
       <p className="text-sm text-slate-400 mb-1">

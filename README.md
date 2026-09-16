@@ -115,6 +115,39 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 
 ## Changelog
 
+### 2026-09-16 — Private matches no longer count toward records
+
+- Private matches (any match started via a Private Match passcode,
+  including "LOKI" playtest rooms) are now fully excluded from account
+  progression: no win/loss, no character-usage stats, no win/loss streak,
+  no rank progress, no unlock-mission progress. Only public matchmaking
+  (Find Match) results are ever recorded. This was already true for
+  Practice Mode; it now applies uniformly to private matches too.
+
+### 2026-09-16 — Playtest passcode for private matches
+
+- Starting a **Private Match** with the passcode **"LOKI"** (case-insensitive)
+  now temporarily unlocks every character — including locked/unreleased
+  ones — for both players in that room only, so new kits can be playtested
+  without actually grinding out their real unlock missions. It never
+  touches either account's real unlock progress, and a badge on Character
+  Select ("🔓 Playtest Unlock") makes it obvious the room is in this mode.
+  Any other passcode behaves exactly as before.
+
+### 2026-09-16 — Rank on the leaderboard, streaks, and rank missions
+
+- **Leaderboard**: now shows each player's current rank and their live
+  win-or-loss streak (e.g. "W5" or "L2", "—" if neither), alongside a new
+  "How to Reach Each Rank" reference section listing every rank tier and
+  its win requirement.
+- **Missions page**: added a Rank Progression section showing every rank
+  tier as its own progress bar (current career wins vs. that tier's
+  requirement), with completed tiers marked done — the same treatment as
+  the existing character-unlock missions.
+- Added `currentLossStreak` tracking (the loss-streak mirror of the
+  existing `currentStreak`) so the leaderboard can distinguish "on a win
+  streak" from "on a losing streak" instead of only ever showing wins.
+
 ### 2026-09-16 — Four more unlockable characters; balance pass
 
 - **Regrouped the Junior Instructors and the four new characters below**:

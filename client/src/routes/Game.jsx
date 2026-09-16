@@ -80,6 +80,9 @@ export default function Game() {
   // Net/Game
   const [roomId, setRoomId] = useState(null);
   const [role, setRole] = useState(null); // "A" | "B"
+  // Set from the "matched" payload when a private room was started with the
+  // "LOKI" passcode — temporarily unlocks every character for both seats.
+  const [playtestUnlock, setPlaytestUnlock] = useState(false);
   const [team, setTeam] = useState(null);
   const [game, setGame] = useState(null);
   const [log, setLog] = useState([]);
@@ -165,10 +168,11 @@ export default function Game() {
 
   // Socket listeners (single mount)
   useEffect(() => {
-    const onMatched = ({ roomId, role, names }) => {
+    const onMatched = ({ roomId, role, names, playtestUnlock }) => {
       setRoomId(roomId);
       setRole(role);
       if (names) setNames(names);
+      setPlaytestUnlock(!!playtestUnlock);
       setInLobby(false);
       setWaiting(true);
       setReconnecting(false);
@@ -232,6 +236,7 @@ export default function Game() {
       setCutscene(null);
       setRoomId(null);
       setRole(null);
+      setPlaytestUnlock(false);
       setInLobby(true);
     };
 
@@ -376,6 +381,7 @@ export default function Game() {
     setCutscene(null);
     setRoomId(null);
     setRole(null);
+    setPlaytestUnlock(false);
     setInLobby(true);
     setChat([]);
   };
@@ -495,6 +501,7 @@ export default function Game() {
             onSelect={(chosen) => setTeam(chosen)}
             onLeave={leaveToLobby}
             isPractice={isPractice}
+            playtestUnlock={playtestUnlock}
           />
         </div>
         <ChatPanel

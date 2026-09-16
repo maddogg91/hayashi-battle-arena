@@ -1,8 +1,31 @@
 import { useEffect, useState } from "react";
 import { getMe, getMissions } from "../api/auth";
 
+function ProgressRow({ label, have, need, met }) {
+  const pct = need ? Math.min(100, Math.round((have / need) * 100)) : 0;
+  return (
+    <div>
+      <div className="flex items-center justify-between text-xs mb-0.5">
+        <span className={met ? "text-teamA-400" : "text-slate-300"}>
+          {met ? "✅" : "⬜"} {label}
+        </span>
+        <span className="text-slate-400">
+          {Math.min(have, need)}/{need}
+        </span>
+      </div>
+      <div className="h-1.5 bg-panel-line rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full ${met ? "bg-teamA-400" : "bg-gold-400"}`}
+          style={{ width: `${Math.max(4, pct)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function Missions({ onBack }) {
   const [missions, setMissions] = useState(null);
+  const [rank, setRank] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -13,7 +36,9 @@ export default function Missions({ onBack }) {
           setError("Log in to track your mission progress.");
           return;
         }
-        setMissions(await getMissions());
+        const data = await getMissions();
+        setMissions(data.missions || []);
+        setRank(data.rank || null);
       } catch (err) {
         setError(err.message || "Could not load missions.");
       }
@@ -42,8 +67,30 @@ export default function Missions({ onBack }) {
         {error && <p className="text-sm text-hp-400">{error}</p>}
         {!error && !missions && <p className="text-sm text-slate-400">Loading…</p>}
 
+        {rank && (
+          <div className="mb-7">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-display font-bold text-slate-100">🎖️ Rank Progression</h3>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gold-500/15 text-gold-300">
+                Current: {rank.currentRank}
+              </span>
+            </div>
+            <div className="panel bg-ink-950 p-4 space-y-2">
+              {rank.tiers.map((t) => (
+                <ProgressRow
+                  key={t.name}
+                  label={t.name}
+                  have={rank.wins}
+                  need={Math.max(t.wins, 1)}
+                  met={t.met}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {missions && missions.length === 0 && (
-          <p className="text-sm text-slate-400">No missions available right now — check back soon.</p>
+          <p className="text-sm text-slate-400">No character-unlock missions available right now — check back soon.</p>
         )}
 
         {missions && missions.length > 0 && (
@@ -63,27 +110,9 @@ export default function Missions({ onBack }) {
                   </span>
                 </div>
                 <div className="space-y-2">
-                  {m.requirements.map((req, i) => {
-                    const pct = req.need ? Math.min(100, Math.round((req.have / req.need) * 100)) : 0;
-                    return (
-                      <div key={i}>
-                        <div className="flex items-center justify-between text-xs mb-0.5">
-                          <span className={req.met ? "text-teamA-400" : "text-slate-300"}>
-                            {req.met ? "✅" : "⬜"} {req.label}
-                          </span>
-                          <span className="text-slate-400">
-                            {Math.min(req.have, req.need)}/{req.need}
-                          </span>
-                        </div>
-                        <div className="h-1.5 bg-panel-line rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${req.met ? "bg-teamA-400" : "bg-gold-400"}`}
-                            style={{ width: `${Math.max(4, pct)}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {m.requirements.map((req, i) => (
+                    <ProgressRow key={i} label={req.label} have={req.have} need={req.need} met={req.met} />
+                  ))}
                 </div>
               </div>
             ))}

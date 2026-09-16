@@ -21,5 +21,5 @@ export const login = (username, password) =>
   call("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }).then((r) => r.user);
 export const logout = () => call("/api/auth/logout", { method: "POST" });
 export const getProfile = (username) => call(`/api/profile/${encodeURIComponent(username)}`).then((r) => r.profile);
-export const getLeaderboard = (limit = 20) => call(`/api/leaderboard?limit=${limit}`).then((r) => r.entries);
-export const getMissions = () => call("/api/missions").then((r) => r.missions);
+export const getLeaderboard = (limit = 20) => call(`/api/leaderboard?limit=${limit}`);
+export const getMissions = () => call("/api/missions");
