@@ -115,6 +115,41 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 
 ## Changelog
 
+### 2026-09-16 — Three new Junior Instructor unlocks; Yuka reworked
+
+- **Yuka corrected**: she's now Terra Guild's newest recruit (was mistakenly
+  Mist). Her kit is fully reworked: **Mouse Trap** (reduces one opponent's
+  damage output 25% for two turns), **Age Hex** (drops an opponent's SPD 2
+  stages and drains 5 SP at the start of each of their next two turns),
+  **Body Swap** (swaps current HP outright with the target), and
+  **Topsy-turvy Ordeal** (AOE confusion for two turns).
+- **Three new unlockable characters**, each requiring Junior Instructor
+  rank (1,000 career wins), 10 wins with a specific character, and a
+  10-match win streak:
+  - **Rock West** (Celestial, 18 SPD) — a ninjutsu brawler. **Substitution**
+    arms a one-time full dodge that stays ready until he's actually hit.
+    **Clone Technique** stacks up to 3 tokens, each worth +25% damage and
+    +25% evasion. **Shuriken Barrage** is a piercing AOE poke. **Gale of
+    Devastation** hits hard but recoils Rock for 30 (reduced 5 per Clone
+    token, which are then all consumed). Unlocks with 10 wins as Star
+    Trethowan.
+  - **Teru Fukuzawa** (AERO, 16 SPD) — a gunslinger. **Scout Target** marks
+    an opponent, granting Teru a standing 25% dodge chance against that
+    specific attacker until he re-scouts, and primes his very next move for
+    a bonus. **Quick Shot**, **Gunplay Carnival**, and **Final Act** all hit
+    harder (and Gunplay Carnival/Final Act home in on the scouted target
+    specifically) when used immediately after Scout Target. Unlocks with
+    10 wins as Jett Kimura.
+  - **Leia Claasen** (Flame, 12 SPD) — an axe-wielding powerhouse.
+    **Almighty Charge** is a 25%-chance one-hit KO. **Bullish Cutter** deals
+    30 damage and stuns. **Absolute Refusal** grants two turns of immunity
+    to opponent debuffs (status effects and stat curses alike). **Intimidation**
+    cuts all opponents' damage output for their next turn. Unlocks with
+    10 wins as Sendara Al Vere.
+- Missions and locked-character cards (from the previous update) now cover
+  all four locked characters, and unlock progress supports a rank-based
+  requirement in addition to character-win and win-streak requirements.
+
 ### 2026-09-12 — Ranks, Missions, and the first unlockable character: Yuka
 
 - **Ranks**: every account now has a rank derived from career wins —
