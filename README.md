@@ -115,6 +115,48 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 
 ## Changelog
 
+### 2026-09-16 — Four more unlockable characters; balance pass
+
+- **Balance**: Sendara's Unyielding Barrage now deals 55 piercing damage
+  (was 50, non-piercing) and only stuns her for 1 turn afterward (was a
+  2-turn self-stun). Kairu's Flash Kick nerfed to 40 damage / 50 SP (was
+  50 damage / 60 SP).
+- **Four new unlockable characters**:
+  - **Raven** (AERO, 18 SPD) — a speed-focused huntress. Shadow Crawl
+    (50% evasion + 1 SPD step for 3 turns, at a 25% damage-output cost),
+    Swift Strikes (10 damage, +10 per consecutive hit on the same target,
+    capped at 50), Quick Retreat (dodges the next hit and cleanses
+    negative status), Desperate Lunge (40 damage, self-exposed for 1
+    turn). Unlocks with 20 wins as Liara Mitsuke.
+  - **Caine** (Flame, 12 SPD) — a strict 4-move combo chain: Un! → Deux! →
+    Trois! → Crimson Finale!, each only usable the action immediately
+    after the previous one (15/15 AOE/30 unguardable AOE/50 unguardable
+    AOE). Unlocks with a 5-win streak *specifically while playing Teru
+    Fukuzawa* — a new per-character win-streak requirement, distinct from
+    the account-wide one.
+  - **Ivy Al Vere** (Celestial, 14 SPD) — Sendara's long-missing sister,
+    an efficient spear-wielder. Lightning Spear (20 damage + 25% stun,
+    +10 per consecutive use), Oppressive Spirit (+10 SP/turn for 3 turns,
+    -25% damage output — the SP gain stacks if recast before it expires),
+    Concentrated Barrage (35 piercing + guaranteed 1-turn stun), Abandon
+    Principles (+25% damage output, +25% damage taken, for 2 turns).
+    Unlocks with 20 wins as Sendara Al Vere.
+  - **Lance** (Mist, 16 SPD) — Lyra's long-lost older brother, a
+    tactician. Darkness Flames (5 AOE, +5 per consecutive use, 50% burn
+    chance), Doppelganger (50% evasion for 2 turns), Refresh (heals 30 HP
+    + cleanses), Gugnir (50 damage, 65 if Lance is at full HP). Unlocks
+    with 10 wins as Lyra, plus 5 wins each as Kairu Yusoko, Soren
+    Harutaki, and Arthur Kinglion.
+- New engine primitives: an `afterMove` requirement (the mirror of the
+  existing `notAfterMove`, powering Caine's combo chain via the same
+  comboKey tracking) and a `fullHpBonus` damage field (Gugnir). Ivy's
+  Oppressive Spirit and Caine's combo chain otherwise reuse entirely
+  pre-existing primitives (mods naturally stack; comboKey already tracks
+  the last move used by any move that opts in).
+- Per-character win streaks (`currentStreak`/`bestStreak` on each
+  `characterUsage` entry) join the existing account-wide streak, backing
+  a new `characterWinStreak` unlock requirement type.
+
 ### 2026-09-16 — Three new Junior Instructor unlocks; Yuka reworked
 
 - **Yuka corrected**: she's now Terra Guild's newest recruit (was mistakenly

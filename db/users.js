@@ -153,10 +153,20 @@ export async function recordMatchResult(userId, { won, characters }) {
 
   const names = Array.isArray(characters) ? [...new Set(characters.filter(Boolean))] : [];
   for (const character of names) {
+    // Per-character win streaks (for unlocks like "win N in a row with
+    // character X") have the same non-atomic-$inc problem as the overall
+    // streak above, so the same read-then-write approach applies here, per
+    // character.
+    const beforeChar = await db.collection("characterUsage").findOne({ userId: _id, character });
+    const prevCharStreak = beforeChar?.currentStreak || 0;
+    const prevCharBest = beforeChar?.bestStreak || 0;
+    const charStreak = won ? prevCharStreak + 1 : 0;
+    const charBest = Math.max(prevCharBest, charStreak);
     await db.collection("characterUsage").updateOne(
       { userId: _id, character },
       {
         $inc: { picks: 1, wins: won ? 1 : 0, losses: won ? 0 : 1 },
+        $set: { currentStreak: charStreak, bestStreak: charBest },
         $setOnInsert: { userId: _id, character },
       },
       { upsert: true }
@@ -170,6 +180,10 @@ export async function recordMatchResult(userId, { won, characters }) {
 function evalRequirement(req, { bestStreak, usageByChar, wins }) {
   if (req.type === "characterWins") {
     const have = usageByChar[req.character]?.wins || 0;
+    return { met: have >= req.count, have, need: req.count };
+  }
+  if (req.type === "characterWinStreak") {
+    const have = usageByChar[req.character]?.bestStreak || 0;
     return { met: have >= req.count, have, need: req.count };
   }
   if (req.type === "winStreak") {

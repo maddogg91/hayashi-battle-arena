@@ -627,6 +627,11 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
           base += Number(step.comboBonus.per || 0) * (actor.comboCount || 0);
         }
       }
+      // Lance's Gugnir: a flat bonus that only applies while the actor is
+      // still at full HP.
+      if (step.fullHpBonus != null && actor.hp >= MAX_HP) {
+        base += Number(step.fullHpBonus);
+      }
       // Caps a stack/combo-scaling move's own damage ceiling (e.g. Sai's
       // Half-moon Melee), independent of external multipliers like dmgMult
       // applied per-target below.
@@ -1129,6 +1134,14 @@ function requirementsMet(unit, game, requires) {
   // hasn't happened yet.
   if (requires.notAfterMove) {
     if (unit.comboKey === requires.notAfterMove) return false;
+  }
+  // The mirror of notAfterMove: this move can ONLY be used the action right
+  // after a specific other move (e.g. Caine's Un!/Deux!/Trois!/Crimson
+  // Finale! combo chain). Reuses the same comboKey tracking — every move in
+  // such a chain gives itself a distinct comboKey so unit.comboKey always
+  // reflects exactly which chain step was used last.
+  if (requires.afterMove) {
+    if (unit.comboKey !== requires.afterMove) return false;
   }
   // Blocks re-use while a named mode the unit itself set is still active
   // (e.g. Ben can't recast Ki Control while its own buff is still ticking).
