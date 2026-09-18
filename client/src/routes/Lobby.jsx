@@ -465,6 +465,8 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
           </button>
           {showWhatsNew && (
             <ul className="mt-3 text-sm text-slate-300 space-y-1.5 list-disc list-inside">
+              <li>Character Select now shows your opponent's name once a match is found. Fixed a bug where re-entering a private match's passcode right after it ended could wrongly say the room was full.</li>
+              <li>Balance: Rock's Clone Technique evasion reduced to 15% per token (was 25%), and taking a hit now costs him one Clone token. Star's Charm-shuriken now only targets opponents who aren't already Charmed, and Charmed units only have a 75% chance to land their own attacks.</li>
               <li>The Leaderboard now shows each player's rank and current win-or-loss streak, plus a "How to Reach Each Rank" reference section. The Missions page now tracks rank progression too, alongside character unlocks.</li>
               <li>Rock West, Teru Fukuzawa, and Leia Claasen are now grouped under "Staff" instead of a guild; Raven, Caine, Ivy Al Vere, and Lance are now grouped under "Villains".</li>
               <li>Balance: Sendara's Unyielding Barrage now deals 55 piercing damage and only self-stuns for 1 turn (was 50 non-piercing, 2-turn self-stun). Kairu's Flash Kick nerfed to 40 damage / 50 SP (was 50 / 60).</li>

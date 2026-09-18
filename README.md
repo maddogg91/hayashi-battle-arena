@@ -115,6 +115,28 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 
 ## Changelog
 
+### 2026-09-18 — Balance changes, a private-match bug fix, opponent names
+
+- **Rock's Clone Technique nerfed**: evasion per Clone token reduced
+  25%→15% (damage output per token unchanged at +25%). Taking a hit that
+  actually lands now also costs Rock one Clone token, on top of the
+  existing per-turn/full-consumption interactions.
+- **Star's Charm-shuriken reworked**: now specifically targets two random
+  opponents who *aren't* already Charmed (previously it could re-target
+  an already-Charmed opponent). Separately, a Charmed unit's own attacks
+  now only have a 75% chance to land (they always connected before) —
+  this applies to any attack a Charmed unit makes, since Charm can only
+  ever be inflicted by Star and there are only two teams, so it's always
+  "against Star and allies" by definition.
+- **Fixed a private-match bug**: re-entering the same passcode right
+  after a private match finished could wrongly report "That passcode
+  room is full," even though the match was over — the old room's seats
+  never actually got freed until both players explicitly returned to the
+  lobby. The passcode is now freed the instant the match ends, so it's
+  immediately reusable.
+- **Character Select now shows your opponent's name** ("You are Player A
+  — facing PlayerB"), for both public matchmaking and private matches.
+
 ### 2026-09-16 — Private matches no longer count toward records
 
 - Private matches (any match started via a Private Match passcode,
