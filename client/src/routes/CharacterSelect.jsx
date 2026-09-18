@@ -4,7 +4,7 @@ import { getMe } from "../api/auth";
 import CharIcon from "../components/CharIcon";
 import { playSfx } from "../utils/sfx";
 
-export default function CharacterSelect({ roomId, role, onSelect, onLeave, isPractice = false, playtestUnlock = false }) {
+export default function CharacterSelect({ roomId, role, onSelect, onLeave, isPractice = false, playtestUnlock = false, opponentName = null }) {
   const [pool, setPool] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [selected, setSelected] = useState([]);
@@ -87,7 +87,11 @@ export default function CharacterSelect({ roomId, role, onSelect, onLeave, isPra
         </span>
       )}
       <p className="text-sm text-slate-400 mb-1">
-        {isPractice ? "Draft any team to test it out." : role ? `You are Player ${role}` : "Assigning role..."}
+        {isPractice
+          ? "Draft any team to test it out."
+          : role
+          ? `You are Player ${role}${opponentName ? ` — facing ${opponentName}` : ""}`
+          : "Assigning role..."}
       </p>
       <p className="text-sm font-semibold text-slate-300 mb-5">{selected.length}/5 selected</p>
 

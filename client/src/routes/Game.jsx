@@ -284,6 +284,10 @@ export default function Game() {
   // to be threaded through every event handler above.
   const isPractice = names.B === "Training Dummies";
 
+  // The other seat's display name, once matched — shown on Character
+  // Select so a player knows who they're about to face.
+  const opponentName = role ? names[role === "A" ? "B" : "A"] : null;
+
   // Diffs consecutive game states to drive hit/heal/status/KO animations and
   // sound effects — see useBattleEffects for how it derives these from pure
   // HP/effects deltas without the server emitting any dedicated event.
@@ -502,6 +506,7 @@ export default function Game() {
             onLeave={leaveToLobby}
             isPractice={isPractice}
             playtestUnlock={playtestUnlock}
+            opponentName={opponentName}
           />
         </div>
         <ChatPanel

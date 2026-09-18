@@ -136,7 +136,11 @@ function stackDmgMultOf(u) {
 // Rock's Clone Technique: +25% evasion per clone token). The defensive
 // counterpart to STACK_DMGMULT_PCT above — stacks additively with
 // dodgeChanceOf (mode-based dodge) rather than multiplicatively.
-const STACK_DODGECHANCE_PCT = { clone: 0.25 };
+const STACK_DODGECHANCE_PCT = { clone: 0.15 };
+// Named stacks that shed one token whenever their owner is actually hit
+// (a real, unblocked instance of damage landing) — e.g. Rock's Clone
+// tokens: each hit costs him one, on top of any turn-based decay.
+const STACK_LOSE_ON_HIT = { clone: 1 };
 function stackDodgeChanceOf(u) {
   const stacks = u.stacks || {};
   let bonus = 0;
@@ -309,6 +313,17 @@ function applyDamage(attacker, defender, raw, opts = {}) {
   if (attacker !== defender) {
     attacker.stats.damageDealt += actualDmg;
     if (actualDmg > 0 && wasAlive && defender.hp <= 0) attacker.stats.kos += 1;
+  }
+  // A hit that actually landed (every full-negation case above — dodge,
+  // invuln, substitute, barrier, mirror — already returned early) costs
+  // the defender one token of any stack flagged in STACK_LOSE_ON_HIT.
+  for (const [name, amt] of Object.entries(STACK_LOSE_ON_HIT)) {
+    const have = defender.stacks?.[name] || 0;
+    if (have > 0) {
+      defender.stacks[name] = Math.max(0, have - amt);
+      const label = name.charAt(0).toUpperCase() + name.slice(1);
+      notes.push(`${defender.name} loses a ${label} token from taking damage.`);
+    }
   }
   if (defender.effects.reflect > 0 && dmg > 0) {
     const refl = Math.max(1, Math.floor(dmg * 0.5));
@@ -569,6 +584,10 @@ function pickTargets(game, actorRole, spec, target) {
     }
     case "aoe_enemy": return legalFoe;
     case "aoe_charmed_enemy": return legalFoe.filter(x => x.effects.charm > 0);
+    // Star's Charm-shuriken: only ever picks from opponents not already
+    // Charmed — combined with `pickRandom:2` below, this is where the
+    // "two random opponents who are not charmed" constraint lives.
+    case "aoe_uncharmed_enemy": return legalFoe.filter(x => x.effects.charm <= 0);
     // Teru's Gunplay Carnival/Final Act: forces the alt hit onto whichever
     // opponent Teru most recently scouted, ignoring whatever the client
     // sent as `target` — the bonus is specifically "the scouted target",
@@ -652,7 +671,13 @@ function resolveActions(game, actor, targets, actions, log, skillLabel) {
       // Charge: a coin-flip one-hit-KO attempt) — distinct from the
       // per-status `chance` field on "effect" steps. Defaults to 1 (always
       // lands), matching every damage step that predates this field.
-      const landChance = step.chance != null ? Number(step.chance) : 1;
+      // A Charmed actor's own attacks only land 75% of the time — since
+      // Charm can only ever be inflicted by Star, and this engine only
+      // ever has two teams, a Charmed unit's attack is always aimed at
+      // "Star and allies" by definition, so no separate target-team check
+      // is needed here.
+      const charmLandChance = actor.effects.charm > 0 ? 0.75 : 1;
+      const landChance = (step.chance != null ? Number(step.chance) : 1) * charmLandChance;
       stepTargets.forEach(t => {
         if (landChance < 1 && Math.random() >= landChance) {
           log.push(`${actor.name}'s ${skillLabel} misses ${t.name}!`);

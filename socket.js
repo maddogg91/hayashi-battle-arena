@@ -707,6 +707,17 @@ export function initSocket(httpServer) {
             console.error("Failed to record match outcome:", err.message);
           });
         }
+        // Free the passcode the instant the match ends, not whenever both
+        // players eventually click "Return to Lobby" — the room itself
+        // stays around a while longer (BattleSummary, Save Replay both
+        // still need it), but a finished match no longer needs to reserve
+        // its code. Without this, re-entering the same passcode right
+        // after a match could wrongly report "room is full": the old
+        // room's players.A/B still held their (now-stale) socket ids, so
+        // the join logic saw both seats as still occupied.
+        if (room.isPrivate && room.passcode && passcodeRooms[room.passcode] === roomId) {
+          delete passcodeRooms[room.passcode];
+        }
       }
     });
 
