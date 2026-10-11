@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hayashi Arena Editor</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">⚔️ Hayashi Arena Editor <span class="badge">offline</span></div>
+    <nav class="tabs" id="tabs">
+      <button data-view="roster" class="active">Roster &amp; Moves</button>
+      <button data-view="balance">Balance Table</button>
+      <button data-view="dialogue">Cutscene Dialogue</button>
+      <button data-view="issues">Issues <span id="issueCount" class="count"></span></button>
+    </nav>
+    <div class="actions">
+      <span id="dirtyNote" class="dirty-note"></span>
+      <button id="btnBackups" class="ghost" title="Restore an earlier version of a data file">Backups</button>
+      <button id="btnPush" class="ghost" title="Ask a locally running game server to re-read the CSVs">Reload game server</button>
+      <button id="btnDiscard" class="ghost" title="Throw away unsaved edits and re-read the files">Discard</button>
+      <button id="btnSave" class="primary" title="Write changes to data/*.csv (Ctrl+S)">Save</button>
+    </div>
+  </header>
+  <main id="app"><div class="empty">Loading roster…</div></main>
+  <div id="toasts"></div>
+  <div id="modal" class="modal hidden"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

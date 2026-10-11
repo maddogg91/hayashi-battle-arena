@@ -13,3 +13,6 @@ pnpm-debug.log*
 .vscode
 .idea
 Thumbs.db
+
+# Local-only tooling, never shipped
+tools

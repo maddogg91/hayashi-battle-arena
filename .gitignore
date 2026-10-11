@@ -8,3 +8,4 @@ data/replays/
 data/feedback/
 *.log
 .DS_Store
+data/.editor-backups/

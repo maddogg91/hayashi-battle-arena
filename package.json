@@ -8,7 +8,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "build": "cd client && npm install && npm run build"
+    "build": "cd client && npm install && npm run build",
+    "editor": "node tools/arena-editor/server.js"
   },
   "engines": {
     "node": "22"

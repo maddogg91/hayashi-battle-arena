@@ -13,6 +13,13 @@ npm run build   # builds the client into public/app
 npm start        # serves the app + Socket.IO on $PORT (default 8080)
 ```
 
+### Offline data editor
+
+`npm run editor` starts a local-only editor at http://127.0.0.1:5178. Use it
+to browse characters, tune move damage and stats, and write cutscene
+dialogue. It edits `data/*.csv` directly and is never deployed. See
+[tools/arena-editor/README.md](tools/arena-editor/README.md).
+
 ### Optional: Discord notifications
 
 Set the `DISCORD_WEBHOOK_URL` environment variable to enable two things:
