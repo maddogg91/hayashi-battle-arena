@@ -1,12 +1,66 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { socket } from "../api/socket";
+import { socket, backendUrl } from "../api/socket";
 import ReportBugModal from "../components/ReportBugModal";
 import AuthModal from "../components/AuthModal";
 import { getMe, logout as apiLogout } from "../api/auth";
 import { playSfx, isMuted, setMuted } from "../utils/sfx";
+import CharIcon from "../components/CharIcon";
 
 const tap = { scale: 0.95 };
+
+// Shared between the full "What's New" panel (returning players) and the
+// condensed "Latest Update" teaser on the landing page (new players) —
+// newest first, kept as plain strings so both can .slice() it freely.
+const WHATS_NEW = [
+  "The landing page for new players now includes an original Hayashi Academy story summary, a How to Play teaser, real gameplay screenshots, a \"Meet the Cast\" preview linking to the full Character Guide, and a condensed Latest Update teaser.",
+  "Character Select now shows your opponent's name once a match is found. Fixed a bug where re-entering a private match's passcode right after it ended could wrongly say the room was full.",
+  "Balance: Rock's Clone Technique evasion reduced to 15% per token (was 25%), and taking a hit now costs him one Clone token. Star's Charm-shuriken now only targets opponents who aren't already Charmed, and Charmed units only have a 75% chance to land their own attacks.",
+  "The Leaderboard now shows each player's rank and current win-or-loss streak, plus a \"How to Reach Each Rank\" reference section. The Missions page now tracks rank progression too, alongside character unlocks.",
+  "Rock West, Teru Fukuzawa, and Leia Claasen are now grouped under \"Staff\" instead of a guild; Raven, Caine, Ivy Al Vere, and Lance are now grouped under \"Villains\".",
+  "Balance: Sendara's Unyielding Barrage now deals 55 piercing damage and only self-stuns for 1 turn (was 50 non-piercing, 2-turn self-stun). Kairu's Flash Kick nerfed to 40 damage / 50 SP (was 50 / 60).",
+  "Four more unlockable characters, all Villains: Raven — Shadow Crawl, Swift Strikes, Quick Retreat, Desperate Lunge, unlocked via 20 wins with Liara Mitsuke; Caine — a strict Un!/Deux!/Trois!/Crimson Finale! combo chain, unlocked via a 5-win streak specifically while playing Teru Fukuzawa; Ivy Al Vere — Sendara's long-missing sister, Lightning Spear, Oppressive Spirit, Concentrated Barrage, Abandon Principles, unlocked via 20 wins with Sendara Al Vere; Lance — Lyra's long-lost older brother, Darkness Flames, Doppelganger, Refresh, Gugnir, unlocked via 10 wins with Lyra plus 5 wins each with Kairu, Soren, and Arthur.",
+  "Three new unlockable Junior Instructors, all Staff, each requiring Junior Instructor rank (1,000 career wins) plus 10 wins with a specific character and a 10-match win streak: Rock West — Substitution, Clone Technique, Shuriken Barrage, Gale of Devastation, unlocked via Star Trethowan; Teru Fukuzawa — Scout Target, Quick Shot, Gunplay Carnival, Final Act, unlocked via Jett Kimura; Leia Claasen — Almighty Charge, Bullish Cutter, Absolute Refusal, Intimidation, unlocked via Sendara Al Vere. Yuka has also been corrected to Terra Guild and given a fully reworked kit: Mouse Trap, Age Hex, Body Swap, and Topsy-turvy Ordeal.",
+  "New: Ranks (based on career wins, from Academy Prospect up to Headmaster) and a Missions page for registered users. The roster now supports locked, unlockable characters — shown as a \"🔒 ???\" card until earned.",
+  "Sai rework: Chain Dance is now a passive that boosts his damage output by 15% per stack (up to 3) instead of feeding a single move. Half-moon Melee is now Opponent Drag — 40 SP (down from 65), deals 15 unguardable damage, and grants Sai invulnerability for one action if the target is bound by Binding Chain. No longer requires Chain Dance stacks to use.",
+  "Balance pass: Liara's Sonic Edge costs less (50→40 SP) and hits harder (25→45 dmg). Ben's Fist of the King can no longer be recast while already active. Sai's Binding Chain now leaves him taking 25% more damage for its 2-turn duration. Kairu's Imbue with Light dodge chance reduced 50%→25%. Arthur's Direct Shot deals less (40→30, 55→45 with Lock-on). Sora's Wave Runner evasion reduced 50%→25%. Jett's Kimura Special now correctly describes its effects and costs him 2 SPD steps while active.",
+  "New Practice Mode (below) — draft a team of 5 and fight 5 Training Dummies that only ever Rest, so you can freely test out combinations. No cutscene, no opponent, and nothing counts toward your record or the leaderboard. Swap in a different team or head back to the lobby with one click, any time, mid-battle included.",
+  "Battle animations and sound effects — hits shake the target and pop a floating damage number, heals pop a green number, a new status effect flashes the portrait, knockouts flash white, and the acting fighter's portrait pulses gold. All sound effects (hits, heals, statuses, dodges, KOs, turn pings, menu clicks, and a victory/defeat fanfare) are synthesized in-browser — no audio files — and can be muted with the 🔊 button at the top of the lobby. Screens now fade in instead of switching abruptly, and buttons/cards have a bit more tactile feedback.",
+  "New Battle Summary screen after every match — a winner banner, an MVP card (based on a composite \"Impact Score\": damage dealt + damage guarded + healing done + KOs×40, not just who got the finishing blow), and a full per-character stat table for both teams covering damage dealt, damage guarded, damage taken, healing done, healing received, KOs, and every status effect they were afflicted with.",
+  "Optional accounts — log in or sign up (link next to your name) to get a Profile with your win/loss record and per-character stats, and a place on the new Leaderboard. Guest play still works exactly like before; logging in is never required.",
+  "New How to Play section (above) — a plain-language rundown of match flow, turn order, the SP economy, targeting, and every status effect in the game.",
+  "New signature movesets for Kobayashi, Sora, Allie, Kara, and Hakudoshi — completing the Terra guild with a Chi-stacking martial artist, a reckless glass-cannon speedster, a vengeful Spite-hoarder who can disable your skills, a support bard who heals over time, and a taunting damage-sponge.",
+  "New signature movesets for Alasia, Robert, Soren, Lyra, and Arthur — a bomb-token demolitionist, a streak-punching brawler with a counter stance, a shield/barrier/mirror-warden support, a Hera-Takeover-mode buffer/debuffer, and a lock-on marksman.",
+  "Balance pass: Jett's Warning Shot now stuns and deals piercing damage in one hit (20 dmg + 2-turn stun under Kimura Special). Erika's Cutesy Magic and Star's Broken Heart now apply Expose (−50% DEF) instead of raw DEF-ignore. Star's Charm-shuriken now hits two random opponents. Kairu's Flash Kick (60 SP), Kenshin's Elemental Barrage (70 SP), and Kaitsu's Impressive Showcase (65 SP) cost more; Tana's Infernal Outburst deals less (35 AOE, 50 vs Burn).",
+  "Pre-battle cutscenes now spotlight a random fighter from each team instead of always whoever was drafted first, every fighter has at least one line of their own, and drafting a full 5-fighter team from a single guild (AERO, Celestial, Flame, Mist, or Terra) triggers a special \"guild joins the battle!\" announcement.",
+  "Fixed Ben's Warrior Instinct crashing the match after a few uses.",
+  "Brand new look across the whole app — redesigned lobby, character select, guide, and battle screens with a proper responsive layout tuned for phones as well as desktop.",
+  "You can now refresh the page, lose connection, or close the tab mid-match and pick right back up where you left off — your opponent sees a \"reconnecting\" notice instead of the match just ending.",
+  "Balance pass: reduced max damage on Shou's Arahabaki Heavy Slash (80→65), Sai's Half-moon Melee (75→55 cap), Sendara's Unyielding Barrage (70→50), and Star's Kiss of Death (50→30). Buffed Arisa (Creature Summon stacks now also grant +25% DEF), Jett (Kimura Special Piercing Volley 35→45 AOE), and Kairu (Flash Kick now costs 50 SP instead of 60).",
+  "Maako's Intangible Flames now grants a 75% dodge chance instead of full untargetability, and its empowered Fiery Punch deals 10 damage instead of 5.",
+  "New signature movesets for Liara, Tana, Ben, Paul, and Kaitsu — a double-acting sword-dancer with an avenging guard, a burn-punishing pyro, a Ki-fueled brawler with a berserker mode, a drone-stacking engineer, and an evasive trick-shot archer.",
+  "Arisa Huang has a new custom winged-hammer icon in place of the generic 🔨.",
+  "Stun now gives a 50/50 chance to act each turn instead of guaranteeing a skipped turn — watch the battle log for \"powers through\" vs \"too stunned.\"",
+  "Status effects, stacks, and active modes (Charmed, Creature Summon, Lightning Charge, Kimura Special, etc.) are now shown for every fighter on the battle grid, not just whoever's currently acting.",
+  "Speed ties in turn order are now a coin flip each round instead of always favoring Team A.",
+  "New signature movesets for Star, Sai, Sendara, Kenshin, and Kairu — a charm-and-punish assassin, a chain-stacking brawler, a combo spearwoman, a Lightning-vs-Rock stance switcher, and a dodge-tank light-user.",
+  "New signature movesets for Arisa, Erika, Jett, Shou, and Maako — stacking summons, a mode-switching gunslinger, a self-sacrificing demon form, intangible flames, and more. Basic Attack is now Rest: skip your turn for a bonus 10 SP.",
+  "New Report a Bug button (🐛 above) — send us a bug report, feedback, or suggestion straight from the app.",
+  "Fixed active matches occasionally breaking when a 3rd or more player joined the lobby or tried to queue.",
+  "Fixed move selection misbehaving on desktop — each move now has its own ⓘ info icon so previewing a description never gets mixed up with the move you've actually selected.",
+  "Fixed attacks appearing \"stuck\" after a brief connection drop — battles now recover cleanly instead of losing the ability to act.",
+  "You can now cancel a pending private match, and Return to Lobby from character select, the waiting screen, or the cutscene.",
+  "New Character Guide (📖 above) — browse every fighter's profile and full skill list before you draft.",
+  "Private match codes are no longer visible to the rest of the lobby — only you and your opponent ever see it.",
+  "Chat now shows your real name instead of falling back to \"Player A\"/\"Player B\", and is split into Personal (your match) and Global (everyone online) tabs.",
+  "New SP (stamina) system: everyone has a flat 100 HP, skills cost SP instead of using cooldowns, and turn order is set by speed each round.",
+];
+
+// A curated, stable spread of unlocked characters — one guild each — for
+// the landing page's "Meet the Cast" teaser. Fetched live from /api/roster
+// so names/art/bios never drift out of sync with the real data; this list
+// just picks which ones to feature.
+const CAST_PREVIEW_NAMES = ["Arisa Huang", "Star Trethowan", "Liara Mitsuke", "Lyra", "Kobayashi", "Jett Kimura"];
 
 const btnPrimary =
   "w-full bg-gradient-to-b from-gold-400 to-gold-500 hover:from-gold-300 hover:to-gold-400 text-ink-950 font-display font-bold text-base py-3 rounded-xl shadow-lg shadow-gold-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gold-500 disabled:to-gold-500 disabled:shadow-none";
@@ -16,6 +70,7 @@ const btnSecondary =
 export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpenGuide, onOpenProfile, onOpenLeaderboard, onOpenMissions }) {
   const [name, setName] = useState("");
   const [hasName, setHasName] = useState(false);
+  const [castPreview, setCastPreview] = useState([]);
   const [loadingPublic, setLoadingPublic] = useState(false);
   const [code, setCode] = useState("");
   const [privStatus, setPrivStatus] = useState("");
@@ -62,6 +117,18 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
       const saved = localStorage.getItem("hayashi_player_name");
       if (saved) applyIdentity(saved);
     })();
+  }, []);
+
+  // Teaser cast for the pre-name landing screen — fetched live so the
+  // names/art/bios never drift out of sync with the real roster.
+  useEffect(() => {
+    fetch(`${backendUrl}/api/roster`)
+      .then((r) => r.json())
+      .then((data) => {
+        const byName = new Map((data.chars || []).map((c) => [c.name, c]));
+        setCastPreview(CAST_PREVIEW_NAMES.map((n) => byName.get(n)).filter(Boolean));
+      })
+      .catch(() => {}); // Purely decorative on the landing screen — fail quietly.
   }, []);
 
   const handleAuthed = (user) => {
@@ -170,7 +237,7 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
 
   if (!hasName) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] text-slate-200 px-4">
+      <div className="flex flex-col items-center text-slate-200 px-4 py-6 sm:py-10 space-y-10 sm:space-y-14">
         <div className="panel w-full max-w-md p-7 sm:p-8">
           <h2 className="font-display text-2xl font-bold text-gold-300 mb-1">Welcome, challenger</h2>
           <p className="text-sm text-slate-400 mb-5">Enter a name to enter the arena.</p>
@@ -196,24 +263,150 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
           >
             Have an account? Log in instead
           </button>
+          <p className="mt-5 text-xs text-slate-500 text-center">Your name is stored locally for next time.</p>
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <button
+              onClick={() => { playSfx("click"); setShowReportModal(true); }}
+              className="text-xs px-3 py-1.5 rounded-lg bg-panel hover:bg-panel-raised text-slate-400 border border-panel-line transition"
+            >
+              🐛 Report a Bug
+            </button>
+            <button
+              onClick={toggleSound}
+              aria-label={soundMuted ? "Unmute sound effects" : "Mute sound effects"}
+              title={soundMuted ? "Sound off" : "Sound on"}
+              className="text-xs px-3 py-1.5 rounded-lg bg-panel hover:bg-panel-raised text-slate-400 border border-panel-line transition"
+            >
+              {soundMuted ? "🔇" : "🔊"}
+            </button>
+          </div>
         </div>
-        <p className="mt-5 text-xs text-slate-500">Your name is stored locally for next time.</p>
-        <div className="mt-4 flex items-center gap-2">
-          <button
-            onClick={() => { playSfx("click"); setShowReportModal(true); }}
-            className="text-xs px-3 py-1.5 rounded-lg bg-panel hover:bg-panel-raised text-slate-400 border border-panel-line transition"
-          >
-            🐛 Report a Bug
-          </button>
-          <button
-            onClick={toggleSound}
-            aria-label={soundMuted ? "Unmute sound effects" : "Mute sound effects"}
-            title={soundMuted ? "Sound off" : "Sound on"}
-            className="text-xs px-3 py-1.5 rounded-lg bg-panel hover:bg-panel-raised text-slate-400 border border-panel-line transition"
-          >
-            {soundMuted ? "🔇" : "🔊"}
-          </button>
+
+        {/* The Hayashi Academy story */}
+        <div className="panel w-full max-w-3xl p-6 sm:p-8">
+          <h3 className="font-display text-xl sm:text-2xl font-bold text-gold-300 mb-3 text-center">
+            The Hayashi Academy
+          </h3>
+          <div className="text-sm sm:text-base text-slate-300 space-y-3 leading-relaxed">
+            <p>
+              High in the mountains, Hayashi Academy trains fighters into five
+              rival guilds — AERO, Celestial, Flame, Mist, and Terra — each
+              built around its own fighting style and its own found family.
+              Every semester ends the same way: guild against guild, 5v5, in
+              the arena, until one side is left standing.
+            </p>
+            <p>
+              The guilds don't always see eye to eye, but they share the same
+              Staff — veteran instructors like Rock West, Teru Fukuzawa, and
+              Leia Claasen, who were students themselves not long ago. What
+              they can't train away is the trouble that keeps finding the
+              Academy from outside its walls: a loose faction of Villains,
+              some with grudges, some with scores to settle, and at least two
+              with family ties to current students that nobody saw coming.
+            </p>
+            <p>
+              New challengers are always welcome. Pick a guild, pick a team,
+              and find out where you fit in the story.
+            </p>
+          </div>
         </div>
+
+        {/* How to Play teaser */}
+        <div className="panel w-full max-w-3xl p-6 sm:p-8">
+          <h3 className="font-display text-xl sm:text-2xl font-bold text-gold-300 mb-3 text-center">
+            How to Play
+          </h3>
+          <p className="text-sm sm:text-base text-slate-300 leading-relaxed mb-4 text-center">
+            Draft a team of 5 fighters, then battle it out 5v5. Turn order is
+            set by speed each round, skills cost SP instead of using
+            cooldowns, and everyone — including you — starts at a flat 100
+            HP. Pick a move, tap a target if it needs one, hit Confirm.
+            That's the whole loop.
+          </p>
+          <p className="text-xs text-slate-500 text-center">
+            The full rundown — turn order, the SP economy, targeting, and
+            every status effect — is one tap away from the lobby once you're
+            in.
+          </p>
+        </div>
+
+        {/* Screenshots */}
+        <div className="w-full max-w-5xl">
+          <h3 className="font-display text-xl sm:text-2xl font-bold text-gold-300 mb-4 text-center">
+            See It In Action
+          </h3>
+          <div className="grid sm:grid-cols-3 gap-4">
+            <figure className="panel p-2">
+              <img
+                src="/screenshots/character-select.png"
+                alt="Drafting a team of 5 fighters on the Character Select screen"
+                className="w-full rounded-lg"
+              />
+              <figcaption className="text-xs text-slate-400 mt-2 text-center">
+                Draft your team of 5 from the full roster
+              </figcaption>
+            </figure>
+            <figure className="panel p-2">
+              <img
+                src="/screenshots/battle.png"
+                alt="A 5v5 battle underway at Hayashi Academy"
+                className="w-full rounded-lg"
+              />
+              <figcaption className="text-xs text-slate-400 mt-2 text-center">
+                Fight it out 5v5, turn by turn
+              </figcaption>
+            </figure>
+            <figure className="panel p-2">
+              <img
+                src="/screenshots/battle-summary.png"
+                alt="The post-battle summary screen showing the winning team and MVP"
+                className="w-full rounded-lg"
+              />
+              <figcaption className="text-xs text-slate-400 mt-2 text-center">
+                Full stats and an MVP breakdown after every match
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+
+        {/* Meet the Cast teaser */}
+        {castPreview.length > 0 && (
+          <div className="w-full max-w-5xl">
+            <h3 className="font-display text-xl sm:text-2xl font-bold text-gold-300 mb-4 text-center">
+              Meet the Cast
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {castPreview.map((c) => (
+                <div key={c.name} className="panel p-4 flex flex-col items-center text-center">
+                  <CharIcon img={c.img} alt={c.name} sizePx={48} className="mb-2" />
+                  <div className="font-display font-bold text-slate-100">{c.name}</div>
+                  <div className="text-xs text-gold-300 mb-2">{c.guild || c.type}</div>
+                  <p className="text-xs text-slate-400 line-clamp-3">{c.description}</p>
+                </div>
+              ))}
+            </div>
+            {onOpenGuide && (
+              <div className="flex justify-center mt-5">
+                <button onClick={() => { playSfx("click"); onOpenGuide(); }} className={btnSecondary}>
+                  📖 View Full Character Guide
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Latest Update teaser */}
+        <div className="panel w-full max-w-3xl p-6 sm:p-8">
+          <h3 className="font-display text-xl sm:text-2xl font-bold text-gold-300 mb-3 text-center">
+            What's New
+          </h3>
+          <ul className="text-sm text-slate-300 space-y-1.5 list-disc list-inside">
+            {WHATS_NEW.slice(0, 3).map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </div>
+
         {showReportModal && (
           <ReportBugModal name={name || "Anonymous"} onClose={() => setShowReportModal(false)} />
         )}
@@ -465,46 +658,9 @@ export default function Lobby({ onReady, setRoomId, setRole, onNameSaved, onOpen
           </button>
           {showWhatsNew && (
             <ul className="mt-3 text-sm text-slate-300 space-y-1.5 list-disc list-inside">
-              <li>Character Select now shows your opponent's name once a match is found. Fixed a bug where re-entering a private match's passcode right after it ended could wrongly say the room was full.</li>
-              <li>Balance: Rock's Clone Technique evasion reduced to 15% per token (was 25%), and taking a hit now costs him one Clone token. Star's Charm-shuriken now only targets opponents who aren't already Charmed, and Charmed units only have a 75% chance to land their own attacks.</li>
-              <li>The Leaderboard now shows each player's rank and current win-or-loss streak, plus a "How to Reach Each Rank" reference section. The Missions page now tracks rank progression too, alongside character unlocks.</li>
-              <li>Rock West, Teru Fukuzawa, and Leia Claasen are now grouped under "Staff" instead of a guild; Raven, Caine, Ivy Al Vere, and Lance are now grouped under "Villains".</li>
-              <li>Balance: Sendara's Unyielding Barrage now deals 55 piercing damage and only self-stuns for 1 turn (was 50 non-piercing, 2-turn self-stun). Kairu's Flash Kick nerfed to 40 damage / 50 SP (was 50 / 60).</li>
-              <li>Four more unlockable characters, all Villains: Raven — Shadow Crawl, Swift Strikes, Quick Retreat, Desperate Lunge, unlocked via 20 wins with Liara Mitsuke; Caine — a strict Un!/Deux!/Trois!/Crimson Finale! combo chain, unlocked via a 5-win streak specifically while playing Teru Fukuzawa; Ivy Al Vere — Sendara's long-missing sister, Lightning Spear, Oppressive Spirit, Concentrated Barrage, Abandon Principles, unlocked via 20 wins with Sendara Al Vere; Lance — Lyra's long-lost older brother, Darkness Flames, Doppelganger, Refresh, Gugnir, unlocked via 10 wins with Lyra plus 5 wins each with Kairu, Soren, and Arthur.</li>
-              <li>Three new unlockable Junior Instructors, all Staff, each requiring Junior Instructor rank (1,000 career wins) plus 10 wins with a specific character and a 10-match win streak: Rock West — Substitution, Clone Technique, Shuriken Barrage, Gale of Devastation, unlocked via Star Trethowan; Teru Fukuzawa — Scout Target, Quick Shot, Gunplay Carnival, Final Act, unlocked via Jett Kimura; Leia Claasen — Almighty Charge, Bullish Cutter, Absolute Refusal, Intimidation, unlocked via Sendara Al Vere. Yuka has also been corrected to Terra Guild and given a fully reworked kit: Mouse Trap, Age Hex, Body Swap, and Topsy-turvy Ordeal.</li>
-              <li>New: Ranks (based on career wins, from Academy Prospect up to Headmaster) and a Missions page for registered users. The roster now supports locked, unlockable characters — shown as a "🔒 ???" card until earned.</li>
-              <li>Sai rework: Chain Dance is now a passive that boosts his damage output by 15% per stack (up to 3) instead of feeding a single move. Half-moon Melee is now Opponent Drag — 40 SP (down from 65), deals 15 unguardable damage, and grants Sai invulnerability for one action if the target is bound by Binding Chain. No longer requires Chain Dance stacks to use.</li>
-              <li>Balance pass: Liara's Sonic Edge costs less (50→40 SP) and hits harder (25→45 dmg). Ben's Fist of the King can no longer be recast while already active. Sai's Binding Chain now leaves him taking 25% more damage for its 2-turn duration. Kairu's Imbue with Light dodge chance reduced 50%→25%. Arthur's Direct Shot deals less (40→30, 55→45 with Lock-on). Sora's Wave Runner evasion reduced 50%→25%. Jett's Kimura Special now correctly describes its effects and costs him 2 SPD steps while active.</li>
-              <li>New Practice Mode (below) — draft a team of 5 and fight 5 Training Dummies that only ever Rest, so you can freely test out combinations. No cutscene, no opponent, and nothing counts toward your record or the leaderboard. Swap in a different team or head back to the lobby with one click, any time, mid-battle included.</li>
-              <li>Battle animations and sound effects — hits shake the target and pop a floating damage number, heals pop a green number, a new status effect flashes the portrait, knockouts flash white, and the acting fighter's portrait pulses gold. All sound effects (hits, heals, statuses, dodges, KOs, turn pings, menu clicks, and a victory/defeat fanfare) are synthesized in-browser — no audio files — and can be muted with the 🔊 button at the top of the lobby. Screens now fade in instead of switching abruptly, and buttons/cards have a bit more tactile feedback.</li>
-              <li>New Battle Summary screen after every match — a winner banner, an MVP card (based on a composite "Impact Score": damage dealt + damage guarded + healing done + KOs×40, not just who got the finishing blow), and a full per-character stat table for both teams covering damage dealt, damage guarded, damage taken, healing done, healing received, KOs, and every status effect they were afflicted with.</li>
-              <li>Optional accounts — log in or sign up (link next to your name) to get a Profile with your win/loss record and per-character stats, and a place on the new Leaderboard. Guest play still works exactly like before; logging in is never required.</li>
-              <li>New How to Play section (above) — a plain-language rundown of match flow, turn order, the SP economy, targeting, and every status effect in the game.</li>
-              <li>New signature movesets for Kobayashi, Sora, Allie, Kara, and Hakudoshi — completing the Terra guild with a Chi-stacking martial artist, a reckless glass-cannon speedster, a vengeful Spite-hoarder who can disable your skills, a support bard who heals over time, and a taunting damage-sponge.</li>
-              <li>New signature movesets for Alasia, Robert, Soren, Lyra, and Arthur — a bomb-token demolitionist, a streak-punching brawler with a counter stance, a shield/barrier/mirror-warden support, a Hera-Takeover-mode buffer/debuffer, and a lock-on marksman.</li>
-              <li>Balance pass: Jett's Warning Shot now stuns and deals piercing damage in one hit (20 dmg + 2-turn stun under Kimura Special). Erika's Cutesy Magic and Star's Broken Heart now apply Expose (−50% DEF) instead of raw DEF-ignore. Star's Charm-shuriken now hits two random opponents. Kairu's Flash Kick (60 SP), Kenshin's Elemental Barrage (70 SP), and Kaitsu's Impressive Showcase (65 SP) cost more; Tana's Infernal Outburst deals less (35 AOE, 50 vs Burn).</li>
-              <li>Pre-battle cutscenes now spotlight a random fighter from each team instead of always whoever was drafted first, every fighter has at least one line of their own, and drafting a full 5-fighter team from a single guild (AERO, Celestial, Flame, Mist, or Terra) triggers a special "guild joins the battle!" announcement.</li>
-              <li>Fixed Ben's Warrior Instinct crashing the match after a few uses.</li>
-              <li>Brand new look across the whole app — redesigned lobby, character select, guide, and battle screens with a proper responsive layout tuned for phones as well as desktop.</li>
-              <li>You can now refresh the page, lose connection, or close the tab mid-match and pick right back up where you left off — your opponent sees a "reconnecting" notice instead of the match just ending.</li>
-              <li>Balance pass: reduced max damage on Shou's Arahabaki Heavy Slash (80→65), Sai's Half-moon Melee (75→55 cap), Sendara's Unyielding Barrage (70→50), and Star's Kiss of Death (50→30). Buffed Arisa (Creature Summon stacks now also grant +25% DEF), Jett (Kimura Special Piercing Volley 35→45 AOE), and Kairu (Flash Kick now costs 50 SP instead of 60).</li>
-              <li>Maako's Intangible Flames now grants a 75% dodge chance instead of full untargetability, and its empowered Fiery Punch deals 10 damage instead of 5.</li>
-              <li>New signature movesets for Liara, Tana, Ben, Paul, and Kaitsu — a double-acting sword-dancer with an avenging guard, a burn-punishing pyro, a Ki-fueled brawler with a berserker mode, a drone-stacking engineer, and an evasive trick-shot archer.</li>
-              <li>Arisa Huang has a new custom winged-hammer icon in place of the generic 🔨.</li>
-              <li>Stun now gives a 50/50 chance to act each turn instead of guaranteeing a skipped turn — watch the battle log for "powers through" vs "too stunned."</li>
-              <li>Status effects, stacks, and active modes (Charmed, Creature Summon, Lightning Charge, Kimura Special, etc.) are now shown for every fighter on the battle grid, not just whoever's currently acting.</li>
-              <li>Speed ties in turn order are now a coin flip each round instead of always favoring Team A.</li>
-              <li>New signature movesets for Star, Sai, Sendara, Kenshin, and Kairu — a charm-and-punish assassin, a chain-stacking brawler, a combo spearwoman, a Lightning-vs-Rock stance switcher, and a dodge-tank light-user.</li>
-              <li>New signature movesets for Arisa, Erika, Jett, Shou, and Maako — stacking summons, a mode-switching gunslinger, a self-sacrificing demon form, intangible flames, and more. Basic Attack is now Rest: skip your turn for a bonus 10 SP.</li>
-              <li>New Report a Bug button (🐛 above) — send us a bug report, feedback, or suggestion straight from the app.</li>
-              <li>Fixed active matches occasionally breaking when a 3rd or more player joined the lobby or tried to queue.</li>
-              <li>Fixed move selection misbehaving on desktop — each move now has its own ⓘ info icon so previewing a description never gets mixed up with the move you've actually selected.</li>
-              <li>Fixed attacks appearing "stuck" after a brief connection drop — battles now recover cleanly instead of losing the ability to act.</li>
-              <li>You can now cancel a pending private match, and Return to Lobby from character select, the waiting screen, or the cutscene.</li>
-              <li>New Character Guide (📖 above) — browse every fighter's profile and full skill list before you draft.</li>
-              <li>Private match codes are no longer visible to the rest of the lobby — only you and your opponent ever see it.</li>
-              <li>Chat now shows your real name instead of falling back to "Player A"/"Player B", and is split into Personal (your match) and Global (everyone online) tabs.</li>
-              <li>New SP (stamina) system: everyone has a flat 100 HP, skills cost SP instead of using cooldowns, and turn order is set by speed each round.</li>
+              {WHATS_NEW.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
             </ul>
           )}
         </div>
