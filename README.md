@@ -115,6 +115,18 @@ Treat `MONGODB_URI` and `SESSION_SECRET` like secrets.
 
 ## Changelog
 
+### 2026-10-20 — Landing page overhaul for new players
+
+- The pre-name "Welcome, challenger" screen is now a full landing page
+  instead of just a name-entry card: an original Hayashi Academy
+  story/lore summary, a condensed How to Play teaser, a gallery of real
+  gameplay screenshots (character select, battle, battle summary), a
+  "Meet the Cast" teaser pulling live from `/api/roster` with a link
+  into the full Character Guide, and a condensed Latest Update teaser.
+- The full post-name-entry How to Play and What's New panels are
+  unchanged; the "What's New" list is now a single shared data array so
+  the full panel and the new landing-page teaser never drift apart.
+
 ### 2026-09-18 — Balance changes, a private-match bug fix, opponent names
 
 - **Rock's Clone Technique nerfed**: evasion per Clone token reduced
